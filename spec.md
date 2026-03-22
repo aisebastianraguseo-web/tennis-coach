@@ -2,9 +2,10 @@
 
 **ID:** tennis-coach
 **Type:** web-saas
-**Version:** 1.0
+**Version:** 1.1
 **Status:** draft
 **Created:** 2026-03-22T00:00:00Z
+**Updated:** 2026-03-22T00:00:00Z — Stack change: Supabase → Neon + Clerk; storage browser-local → cloud PostgreSQL
 
 ---
 
@@ -12,7 +13,7 @@
 
 ### 1.1 Description
 
-Tennis Coach is a mobile-first, single-user Progressive Web App for club-level tennis players who want to build structured, data-driven knowledge about their recurring opponents and their own playing goals. The app stores growing opponent profiles based on a 3-Cluster analysis framework (Raum / Höhe / Mental), guides pre-match preparation with AI-powered tactical briefings, tracks real-time cluster signals during changeovers, and captures post-match retrospectives. All data lives in the browser (localStorage / IndexedDB). The only external service is the Anthropic Claude API, called through a proxied Next.js API route to protect the API key.
+Tennis Coach is a mobile-first, cloud-backed web app for club-level tennis players who want to build structured, data-driven knowledge about their recurring opponents and their own playing goals. The app stores growing opponent profiles based on a 3-Cluster analysis framework (Raum / Höhe / Mental), guides pre-match preparation with AI-powered tactical briefings, tracks real-time cluster signals during changeovers, and captures post-match retrospectives. Data is persisted in a Neon (serverless PostgreSQL) database. Authentication is handled by Clerk. The only AI service is the Anthropic Claude API, called through a proxied Next.js API route to protect the API key.
 
 ### 1.2 Problem Statement
 
@@ -24,7 +25,7 @@ Club tennis beginners have no system to retain observations between matches. Eve
 2. User can complete the pre-match preparation flow (goal selection + AI briefing) in under 2 minutes.
 3. User can tap a cluster state in match-view and receive an AI recommendation within 3 seconds.
 4. User can complete the post-match retrospective and have the player profile auto-updated in a single submit action.
-5. All match history, player profiles, and goals persist across browser sessions without any user account or login.
+5. All match history, player profiles, and goals persist in the cloud and are accessible after login from any device.
 
 ---
 
@@ -69,16 +70,16 @@ The entry screen of the app. Displays all players (predefined + user-added) in a
 - [ ] AC-player-list-3: Tapping a player opens a bottom-sheet or modal with two large buttons: "Spielen" and "Beobachten".
 - [ ] AC-player-list-4: Tapping "+ Spieler hinzufügen" opens a form with a single required field (name). Submitting adds the player to the bottom of the list with grey indicator.
 - [ ] AC-player-list-5: Colour indicator logic: grey = 0 matches; yellow = ≥1 match but not all 3 clusters resolved; green = all 3 clusters (Raum, Höhe, Mental) have a status other than "unknown".
-- [ ] AC-player-list-6: List persists across page refreshes (data in localStorage/IndexedDB).
+- [ ] AC-player-list-6: List persists across sessions and devices (data in Neon via authenticated Server Actions).
 
 ### Data Requirements
 
-- Players table: id, name, is_predefined, created_at
-- Derived fields (computed at render): match_count, last_match_date, profile_completeness
+- `players` table: id, user_id, name, is_predefined, created_at
+- Derived fields (computed at query time via JOIN): match_count, last_match_date, profile_completeness
 
 ### API Surface
 
-No HTTP API for this feature — all data is read/written from browser storage directly via a storage service module.
+Data is fetched via Next.js Server Actions (no separate REST endpoint). All actions require an authenticated Clerk session (`auth()` returns `userId`). Every query filters by `user_id = userId`.
 
 ---
 
@@ -140,15 +141,15 @@ A persistent library of personal playing goals grouped into 6 categories. 17 pre
 - [ ] AC-goal-library-3: Goals can be archived via a long-press or swipe action. Archived goals are hidden from the default view but accessible via a toggle ("Archivierte anzeigen").
 - [ ] AC-goal-library-4: "Neues Ziel hinzufügen" text input at the bottom of the goal library screen accepts free text. Submitting prompts category selection (dropdown). Saves immediately to storage.
 - [ ] AC-goal-library-5: The goal library screen is accessible from the main navigation (not only from pre-match).
-- [ ] AC-goal-library-6: Goal library persists across browser sessions.
+- [ ] AC-goal-library-6: Goal library persists across sessions and devices (data in Neon).
 
 ### Data Requirements
 
-- Goal: id, text, short_label, category (bewegung|technik|taktik|aufschlag|koerper|sonstige), is_predefined, is_archived, created_at
+- `goals` table: id, user_id, text, short_label, category (bewegung|technik|taktik|aufschlag|koerper|sonstige), is_predefined, is_archived, created_at
 
 ### API Surface
 
-No API — all reads/writes to browser storage.
+Server Actions only. All actions scoped to `user_id` from Clerk `auth()`.
 
 ---
 
@@ -300,152 +301,170 @@ None.
 
 ### 4.1 Entity Relationship Overview
 
-All data is stored in the browser via IndexedDB (accessed through a thin storage service). There is no server-side database. The key entities are:
+All data is stored in Neon (serverless PostgreSQL). Every table carries a `user_id` column (Clerk user ID) so all rows are tenant-scoped. Access control is enforced at the application layer: every Server Action and Route Handler calls `auth()` from Clerk and appends `WHERE user_id = :userId` to every query.
 
-- **Player** — one per opponent (predefined or user-added)
-- **Profile** — one-to-one with Player; stores cluster states and AI summary
-- **Match** — many-to-one with Player; one per play/observe session
-- **MatchObservation** — many-to-one with Match; one per cluster tap
-- **RetestEntry** — many-to-one with Match; one per retest trigger
-- **RetroEntry** — one-to-one with Match (Play mode only)
-- **Goal** — global library; many-to-many with Match (via selected goals stored in RetroEntry)
+- **players** — one per opponent per user (predefined rows seeded on first login)
+- **profiles** — one-to-one with players; stores cluster states and AI summary
+- **matches** — many-to-one with players; one per play/observe session
+- **match_observations** — many-to-one with matches; one per cluster tap
+- **retest_entries** — many-to-one with matches; one per retest trigger event
+- **retro_entries** — one-to-one with matches (play mode only)
+- **goals** — per-user library; predefined rows seeded on first login
 
-### 4.2 Storage Schema (IndexedDB / localStorage)
+### 4.2 Database Schema (PostgreSQL / Drizzle)
 
-Since v1 uses browser storage, the schema is defined as TypeScript interfaces. All data is serialised as JSON.
+```sql
+-- Enable pgcrypto for gen_random_uuid()
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-```typescript
-// lib/storage/types.ts
+-- players
+CREATE TABLE players (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     TEXT NOT NULL,           -- Clerk userId
+  name        TEXT NOT NULL,
+  is_predefined BOOLEAN NOT NULL DEFAULT false,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-export type ClusterStatus = 'stabil' | 'instabil' | 'unknown';
-export type GoalResult = 'ja' | 'teilweise' | 'nein';
-export type MatchMode = 'play' | 'observe';
-export type GoalCategory =
-  | 'bewegung'
-  | 'technik'
-  | 'taktik'
-  | 'aufschlag'
-  | 'koerper'
-  | 'sonstige';
-export type Lever = 'raum' | 'höhe' | 'mental' | 'keiner';
-export type RetestTrigger = 'satzwechsel' | 'break' | 'drei_games';
+-- profiles (1:1 with players)
+CREATE TABLE profiles (
+  player_id         UUID PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
+  user_id           TEXT NOT NULL,
+  raum_status       TEXT NOT NULL DEFAULT 'unknown' CHECK (raum_status IN ('stabil','instabil','unknown')),
+  raum_sublever     TEXT NOT NULL DEFAULT 'none'    CHECK (raum_sublever IN ('cross','drop','both','none')),
+  hoehe_status      TEXT NOT NULL DEFAULT 'unknown' CHECK (hoehe_status IN ('stabil','instabil','unknown')),
+  hoehe_sublever    TEXT NOT NULL DEFAULT 'none'    CHECK (hoehe_sublever IN ('tief','hoch','both','none')),
+  mental_status     TEXT NOT NULL DEFAULT 'unknown' CHECK (mental_status IN ('stabil','instabil','unknown')),
+  mental_pattern    TEXT NOT NULL DEFAULT 'unknown' CHECK (mental_pattern IN ('risiko_hoch','risiko_runter','konstant','unknown')),
+  kondition_note    TEXT NOT NULL DEFAULT '',
+  ai_summary        TEXT NOT NULL DEFAULT '',
+  ai_summary_generated_at TIMESTAMPTZ,
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-export interface Player {
-  id: string;           // uuid
-  name: string;
-  isPredefined: boolean;
-  createdAt: string;    // ISO 8601
-}
+-- matches
+CREATE TABLE matches (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id           TEXT NOT NULL,
+  player_id         UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  observe_player_ids UUID[] NOT NULL DEFAULT '{}',  -- empty for play mode
+  date              DATE NOT NULL DEFAULT CURRENT_DATE,
+  mode              TEXT NOT NULL CHECK (mode IN ('play','observe')),
+  result            TEXT CHECK (result IN ('W','L')),
+  score             TEXT NOT NULL DEFAULT '',
+  selected_goal_ids UUID[] NOT NULL DEFAULT '{}',   -- exactly 3 for play mode
+  ai_briefing       TEXT NOT NULL DEFAULT '',
+  started_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ended_at          TIMESTAMPTZ
+);
 
-export interface Profile {
-  playerId: string;
-  raumStatus: ClusterStatus;
-  raumSublever: 'cross' | 'drop' | 'both' | 'none';
-  höheStatus: ClusterStatus;
-  höheSublever: 'tief' | 'hoch' | 'both' | 'none';
-  mentalStatus: ClusterStatus;
-  mentalPattern: 'risiko_hoch' | 'risiko_runter' | 'konstant' | 'unknown';
-  konditionNote: string;
-  aiSummary: string;
-  aiSummaryGeneratedAt: string | null;
-  updatedAt: string;
-}
+-- match_observations
+CREATE TABLE match_observations (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     TEXT NOT NULL,
+  match_id    UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+  player_id   UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  set_number  SMALLINT NOT NULL DEFAULT 1,
+  cluster     TEXT NOT NULL CHECK (cluster IN ('raum','hoehe','mental')),
+  status      TEXT NOT NULL CHECK (status IN ('stabil','instabil','unknown')),
+  note        TEXT NOT NULL DEFAULT '',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-export interface Match {
-  id: string;           // uuid
-  playerId: string;
-  observePlayerIds: string[];  // empty for play mode; both player IDs for observe mode
-  date: string;         // ISO 8601 date
-  mode: MatchMode;
-  result: 'W' | 'L' | null;
-  score: string;        // e.g. "6:4, 3:6, 6:2"
-  selectedGoalIds: string[];   // exactly 3 for play mode
-  aiBriefing: string;
-  startedAt: string;
-  endedAt: string | null;
-}
+-- retest_entries
+CREATE TABLE retest_entries (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        TEXT NOT NULL,
+  match_id       UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+  trigger        TEXT NOT NULL CHECK (trigger IN ('satzwechsel','break','drei_games')),
+  raum_changed   BOOLEAN NOT NULL DEFAULT false,
+  hoehe_changed  BOOLEAN NOT NULL DEFAULT false,
+  mental_changed BOOLEAN NOT NULL DEFAULT false,
+  note           TEXT NOT NULL DEFAULT '',
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-export interface MatchObservation {
-  id: string;
-  matchId: string;
-  playerId: string;     // needed for observe mode
-  setNumber: number;
-  cluster: 'raum' | 'höhe' | 'mental';
-  status: ClusterStatus;
-  note: string;
-  createdAt: string;
-}
+-- retro_entries (1:1 with matches, play mode only)
+CREATE TABLE retro_entries (
+  match_id            UUID PRIMARY KEY REFERENCES matches(id) ON DELETE CASCADE,
+  user_id             TEXT NOT NULL,
+  goal_1_id           UUID NOT NULL REFERENCES goals(id),
+  goal_1_result       TEXT NOT NULL CHECK (goal_1_result IN ('ja','teilweise','nein')),
+  goal_1_note         TEXT NOT NULL DEFAULT '',
+  goal_2_id           UUID NOT NULL REFERENCES goals(id),
+  goal_2_result       TEXT NOT NULL CHECK (goal_2_result IN ('ja','teilweise','nein')),
+  goal_2_note         TEXT NOT NULL DEFAULT '',
+  goal_3_id           UUID NOT NULL REFERENCES goals(id),
+  goal_3_result       TEXT NOT NULL CHECK (goal_3_result IN ('ja','teilweise','nein')),
+  goal_3_note         TEXT NOT NULL DEFAULT '',
+  strongest_lever     TEXT NOT NULL CHECK (strongest_lever IN ('raum','hoehe','mental','keiner')),
+  missed_signal_note  TEXT NOT NULL DEFAULT '',
+  next_test_note      TEXT NOT NULL DEFAULT '',
+  ai_synergy_feedback TEXT NOT NULL DEFAULT '',
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-export interface RetestEntry {
-  id: string;
-  matchId: string;
-  trigger: RetestTrigger;
-  raumChanged: boolean;
-  höheChanged: boolean;
-  mentalChanged: boolean;
-  note: string;
-  createdAt: string;
-}
-
-export interface RetroEntry {
-  matchId: string;
-  goal1Id: string;
-  goal1Result: GoalResult;
-  goal1Note: string;
-  goal2Id: string;
-  goal2Result: GoalResult;
-  goal2Note: string;
-  goal3Id: string;
-  goal3Result: GoalResult;
-  goal3Note: string;
-  strongestLever: Lever;
-  missedSignalNote: string;
-  nextTestNote: string;
-  aiSynergyFeedback: string;
-  createdAt: string;
-}
-
-export interface Goal {
-  id: string;
-  text: string;         // full description
-  shortLabel: string;   // max 40 chars
-  category: GoalCategory;
-  isPredefined: boolean;
-  isArchived: boolean;
-  createdAt: string;
-}
+-- goals
+CREATE TABLE goals (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      TEXT NOT NULL,
+  text         TEXT NOT NULL,
+  short_label  TEXT NOT NULL,         -- max 40 chars, enforced in app layer
+  category     TEXT NOT NULL CHECK (category IN ('bewegung','technik','taktik','aufschlag','koerper','sonstige')),
+  is_predefined BOOLEAN NOT NULL DEFAULT false,
+  is_archived  BOOLEAN NOT NULL DEFAULT false,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 ```
 
-### 4.3 IndexedDB Store Names
+### 4.3 Indexes
 
-| Store Name         | Key       | Indexes                      |
-|--------------------|-----------|------------------------------|
-| `players`          | `id`      | `name`                       |
-| `profiles`         | `playerId`| —                            |
-| `matches`          | `id`      | `playerId`, `date`           |
-| `matchObservations`| `id`      | `matchId`, `playerId`        |
-| `retestEntries`    | `id`      | `matchId`                    |
-| `retroEntries`     | `matchId` | —                            |
-| `goals`            | `id`      | `category`, `isArchived`     |
+```sql
+CREATE INDEX idx_players_user_id        ON players(user_id);
+CREATE INDEX idx_profiles_user_id       ON profiles(user_id);
+CREATE INDEX idx_matches_user_id        ON matches(user_id);
+CREATE INDEX idx_matches_player_id      ON matches(player_id);
+CREATE INDEX idx_matches_date           ON matches(date DESC);
+CREATE INDEX idx_observations_match_id  ON match_observations(match_id);
+CREATE INDEX idx_observations_user_id   ON match_observations(user_id);
+CREATE INDEX idx_retest_match_id        ON retest_entries(match_id);
+CREATE INDEX idx_retro_user_id          ON retro_entries(user_id);
+CREATE INDEX idx_goals_user_id          ON goals(user_id);
+CREATE INDEX idx_goals_category         ON goals(category);
+```
 
-### 4.4 RLS Policies
+### 4.4 Access Control (replaces RLS)
 
-N/A — v1 uses browser-local storage only. No server-side database.
+Neon does not provide built-in Row Level Security. Access control is enforced at the application layer via three mechanisms:
+
+1. **Clerk Middleware** — all routes under `/(app)` require an active session. Unauthenticated requests are redirected to `/sign-in`.
+2. **`user_id` filter on every query** — every Drizzle query includes `.where(eq(table.userId, userId))` where `userId` comes from `auth()`. This is enforced via a shared query helper `lib/db/queries.ts` — direct table access without this filter is not permitted.
+3. **Server Actions / Route Handlers only** — no DB access from client components. `auth()` is only available server-side.
+
+### 4.5 Seed Data (on first login)
+
+When a user logs in for the first time (detected by absence of rows in `players` for their `user_id`), a seed Server Action inserts:
+- 16 predefined players
+- 17 predefined goals (as specified in intake)
+
+This runs once per user, idempotently gated by `WHERE user_id = :userId AND is_predefined = true`.
 
 ---
 
 ## 5. API Surface
 
-All API routes are Next.js App Router Route Handlers in `app/api/`. They receive data from client, call the Anthropic API server-side, and return the response. No data is stored server-side.
+The app uses two types of server-side data access:
+- **Server Actions** — for all CRUD operations (players, goals, matches, observations, retro). Called from Client Components via `use server`.
+- **Route Handlers** — for AI calls only (streaming-compatible, returns plain text).
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/api/ai/pre-match` | public | Generate one-sentence tactical briefing for pre-match |
-| POST | `/api/ai/changeover` | public | Generate one-sentence changeover recommendation |
-| POST | `/api/ai/retrospective` | public | Generate 2–3 sentence synergy feedback |
-| POST | `/api/ai/player-summary` | public | Generate AI player profile summary paragraph |
+| POST | `/api/ai/pre-match` | Clerk session required | Generate one-sentence tactical briefing |
+| POST | `/api/ai/changeover` | Clerk session required | Generate one-sentence changeover recommendation |
+| POST | `/api/ai/retrospective` | Clerk session required | Generate 2–3 sentence synergy feedback |
+| POST | `/api/ai/player-summary` | Clerk session required | Generate AI player profile summary paragraph |
 
-> ASSUMPTION: All API routes are public (no auth header required) since the app has no user accounts. The `ANTHROPIC_API_KEY` is held server-side in a Next.js environment variable and never exposed to the client. Rate limiting via Vercel Edge Middleware protects against abuse.
+All Route Handlers call `auth()` from Clerk at the top and return 401 if no session is present. The `ANTHROPIC_API_KEY` is held server-side and never exposed to the client.
 
 ### Claude API Call Specifications
 
@@ -518,16 +537,19 @@ Generate one paragraph: what this player demands from you and which lever to use
 
 ### 6.2 Security
 
-- `ANTHROPIC_API_KEY` stored as server-side environment variable only. Never in client bundle, never in localStorage.
-- API routes use Vercel Edge Middleware rate limiting: max 30 AI requests per minute per IP.
-- CSP headers: `default-src 'self'; script-src 'self' 'nonce-{nonce}'; connect-src 'self' https://api.anthropic.com` — no unsafe-inline, no unsafe-eval.
-- HTTP security headers per governance/rules.md §1.4: HSTS, X-Content-Type-Options, X-Frame-Options: DENY, Referrer-Policy, Permissions-Policy.
-- HTTPS only in production (Vercel enforces this).
-- No user PII stored server-side. All player names and match data are browser-local.
-- Input validation: all AI API route request bodies validated with Zod before forwarding to Claude.
-- No SQL injection risk (no server-side database in v1).
-- OWASP A05 (Security Misconfiguration): no debug endpoints in production; no stack traces sent to client — only generic error messages.
-- OWASP A10 (SSRF): the only external URL called server-side is `https://api.anthropic.com` — hardcoded, not user-controlled.
+- **Auth**: Clerk handles all authentication. `middleware.ts` protects `/(app)` routes. Every Server Action and Route Handler calls `auth()` and returns 401/redirect if no session.
+- **DB access control**: every query includes `WHERE user_id = :userId` (Clerk userId). No cross-user data access is possible at the application layer.
+- **`ANTHROPIC_API_KEY`**: server-side environment variable only. Never in client bundle, never logged.
+- **`DATABASE_URL`**: server-side only. Neon connection string never exposed to client.
+- **Rate limiting**: Vercel Edge Middleware — max 30 AI API requests per minute per IP.
+- **CSP headers**: `default-src 'self'; script-src 'self' 'nonce-{nonce}'; connect-src 'self' https://api.anthropic.com https://clerk.com` — no unsafe-inline, no unsafe-eval.
+- **HTTP security headers** per governance/rules.md §1.4: HSTS, X-Content-Type-Options, X-Frame-Options: DENY, Referrer-Policy, Permissions-Policy.
+- **HTTPS**: Vercel enforces HTTPS in production.
+- **Input validation**: all Server Action and Route Handler inputs validated with Zod before any DB query or Claude API call.
+- **SQL injection**: prevented by Drizzle ORM parameterised queries. Raw SQL is not used in application code.
+- **OWASP A01 (Broken Access Control)**: `user_id` filter on every query; Clerk Middleware blocks unauthenticated access.
+- **OWASP A05 (Security Misconfiguration)**: no debug endpoints in production; no stack traces returned to client.
+- **OWASP A10 (SSRF)**: only hardcoded external URL server-side is `https://api.anthropic.com`.
 
 ### 6.3 Accessibility
 
@@ -551,14 +573,15 @@ Generate one paragraph: what this player demands from you and which lever to use
 - Mobile-first: designed for portrait, one-handed operation
 - No horizontal scrolling on any viewport 320px–2560px
 - Font sizes: minimum 16px body, ≥20px for AI recommendations
-- Offline: app shell and all cached data work offline after first load; AI features require network (graceful degradation with inline message)
+- Offline: not supported in v1 — all features require network (Neon + Clerk + Anthropic). App shows an error state when offline (see OQ-6).
 
 ### 6.5 Data Privacy
 
-- GDPR applicability: the app stores player names (which could be considered personal data of third parties). All data is stored locally in the user's browser — no server-side processing or storage of personal data except for the transient AI API call payloads.
-- API call payloads contain player names and match observations. These are sent to Anthropic's API. The user must be informed of this via a one-time notice (see Open Questions OQ-3).
-- Data residency: EU (Vercel EU region for the Next.js deployment; Anthropic API is US-hosted — this is a known limitation for v1).
-- No analytics, no error tracking that captures user data (Sentry configured to scrub PII if added in future).
+- GDPR applicability: the app stores player names (personal data of third parties) and match observations in Neon (PostgreSQL). Data is stored server-side under the authenticated user's `user_id`.
+- Clerk stores user account data (email, session tokens) — see Clerk's DPA for GDPR compliance details.
+- API call payloads contain player names and match observations sent to Anthropic's API (US-hosted). Users are informed via a one-time consent notice on first login (see OQ-3).
+- Data residency: Vercel EU region for Next.js; Neon EU region (`eu-central-1`); Anthropic API is US-hosted (known v1 limitation).
+- No analytics. Sentry (if enabled) configured to scrub PII.
 
 ---
 
@@ -582,14 +605,30 @@ Generate one paragraph: what this player demands from you and which lever to use
 
 ## 8. External Dependencies
 
+### Neon (PostgreSQL)
+
+- **Purpose:** Serverless PostgreSQL database. Stores all application data (players, profiles, matches, goals, observations, retro entries).
+- **Required Credentials:** `DATABASE_URL` (pooled), `DATABASE_URL_UNPOOLED` (for migrations)
+- **Account Setup:** Create project at neon.tech. Select region `eu-central-1`. Copy connection strings to Vercel environment variables.
+- **Pricing Tier:** Free tier — 0.5 GB storage, 1 project, no expiry. Sufficient for a single-user app with years of match data.
+- **Driver:** `@neondatabase/serverless` + Drizzle ORM.
+
+### Clerk
+
+- **Purpose:** Authentication — sign-up, sign-in, session management, user identity (`userId` used as tenant key in all DB queries).
+- **Required Credentials:** `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, redirect URL env vars (see stack.md)
+- **Account Setup:** Create app at clerk.com. Enable Email/Password provider. Add environment variables to Vercel.
+- **Pricing Tier:** Free tier — 10,000 MAU. Covers any realistic usage of this app.
+- **Integration:** `@clerk/nextjs` package. `middleware.ts` protects app routes. `auth()` used server-side in every data access function.
+
 ### Anthropic Claude API
 
-- **Purpose:** Powers all 4 AI coaching moments: pre-match briefing, changeover recommendation, retest signal, post-match synergy feedback, and player summary.
+- **Purpose:** Powers all AI coaching moments: pre-match briefing, changeover recommendation, post-match synergy feedback, and player summary.
 - **Required Credentials:** `ANTHROPIC_API_KEY`
 - **Account Setup:** Create account at console.anthropic.com. Generate API key. Add to Vercel environment variables (never to `.env` committed to git).
-- **Model:** `claude-sonnet-4-6` (claude-sonnet-4-6 as of 2026-03-22)
-- **Pricing Tier:** Pay-per-use. Estimated usage per match: ~4 API calls × 150 tokens output ≈ 600 output tokens. At current Sonnet pricing, <$0.01 per match. Negligible for a single-user app.
-- **Rate Limiting:** Anthropic API has per-minute token limits. The app's rate limiter (30 req/min per IP) is well within limits for single-user usage.
+- **Model:** `claude-sonnet-4-6`
+- **Pricing Tier:** Pay-per-use. Estimated usage per match: ~4 API calls × 150 tokens output ≈ 600 output tokens. <$0.01 per match. Negligible for a single-user app.
+- **Rate Limiting:** App-level limiter (30 req/min per IP) is well within Anthropic's per-minute limits.
 
 ---
 
@@ -597,6 +636,7 @@ Generate one paragraph: what this player demands from you and which lever to use
 
 - [ ] OQ-1: How should the user navigate to the Player Profile screen? The intake specifies "Play" and "Observe" as the two tap actions. A third action ("Profil ansehen") needs to be added to the player tap modal, or the profile must be accessible via swipe/long-press. **Recommended:** add "Profil" as a third option in the modal. Needs human confirmation.
 - [ ] OQ-2: Should match-view show a set counter / current set indicator? The retest block references "Satzwechsel" and "set_number" is in MatchObservation, but the intake does not specify a set-tracking UI element. **Recommended:** add a simple "Satz: 1 / 2 / 3" toggle at the top of match-view that auto-increments observations. Needs human confirmation.
-- [ ] OQ-3: GDPR notice — player names in AI call payloads. A brief notice should be shown to the user on first launch explaining that match data (including player names) is sent to Anthropic's API for AI coaching responses. Should this be a dismissible modal or a persistent footer note? **Recommended:** dismissible modal on first launch, stored dismissed state in localStorage.
+- [ ] OQ-3: GDPR notice — player names in AI call payloads and stored server-side. A brief notice should be shown to the user on first login explaining that match data is stored in EU cloud infrastructure and that AI features send match data to Anthropic's API (US). Should this be a dismissible modal (one-time, stored in DB per user) or accepted as part of sign-up terms? **Recommended:** one-time dismissible modal shown after first sign-in, dismissed state stored in DB.
 - [ ] OQ-4: Short labels for predefined goals — the intake specifies `short_label` max 40 chars but does not provide short labels for the 17 predefined goals. The scaffold agent will derive them as the first 40 chars of each goal text. Confirm this is acceptable or provide explicit short labels.
 - [ ] OQ-5: Observe mode retrospective — intake says "only analysis quality block" for observe mode, but it's unclear whether the AI synergy call is made at all, or just skipped. **Recommended:** skip AI call in observe mode; save only the 3 analysis questions as a reduced RetroEntry. Needs human confirmation.
+- [ ] OQ-6: Offline capability — v1 browser-local spec included offline support. With Neon + Clerk, offline is not supported (all reads/writes require network). Should the app show a clear "Du bist offline — Daten werden gespeichert sobald du wieder verbunden bist" message, or is offline simply out-of-scope for v1? **Recommended:** out-of-scope for v1; show a network error state if DB is unreachable. Needs human confirmation.
