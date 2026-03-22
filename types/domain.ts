@@ -1,0 +1,7 @@
+export type ClusterStatus = 'stabil' | 'instabil' | 'unknown'
+export type GoalCategory = 'bewegung' | 'technik' | 'taktik' | 'aufschlag' | 'koerper' | 'sonstige'
+export type Lever = 'raum' | 'hoehe' | 'mental' | 'keiner'
+export type MatchMode = 'play' | 'observe'
+export type GoalResult = 'ja' | 'teilweise' | 'nein'
+export type RetestTrigger = 'satzwechsel' | 'break' | 'drei_games'
+export type MatchResult = 'W' | 'L'

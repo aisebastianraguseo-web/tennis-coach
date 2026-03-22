@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  /* Tennis Coach colour palette */
+  --color-navy-900: #1f4e79;
+  --color-navy-800: #1a3f5f;
+  --color-teal-700: #1d6b6b;
+  --color-teal-600: #237e7e;
+
+  /* Cluster status colours */
+  --color-stable-bg: #e2efda;
+  --color-stable-text: #375623;
+  --color-instabil-bg: #fce4d6;
+  --color-instabil-text: #c00000;
+  --color-neutral-bg: #fff2cc;
+  --color-neutral-text: #7f6000;
+
+  /* AI card */
+  --color-ai-bg: #1f4e79;
+  --color-ai-text: #ffffff;
+
+  /* Surface */
+  --color-surface: #ffffff;
+  --color-surface-muted: #f2f2f2;
+
+  /* Touch targets */
+  --spacing-touch: 3rem; /* 48px */
+  --spacing-cluster-btn: 5rem; /* 80px */
+
+  /* Font sizes */
+  --text-ai: 1.25rem; /* 20px minimum for AI recommendations */
+}
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-white text-slate-900 antialiased;
+    font-size: 1rem; /* 16px minimum body */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Focus ring — visible, high contrast */
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-navy-900;
+  }
+}
