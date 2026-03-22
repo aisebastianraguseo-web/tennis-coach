@@ -3,7 +3,7 @@
 **ID:** tennis-coach
 **Type:** web-saas
 **Version:** 1.1
-**Status:** draft
+**Status:** approved
 **Created:** 2026-03-22T00:00:00Z
 **Updated:** 2026-03-22T00:00:00Z — Stack change: Supabase → Neon + Clerk; storage browser-local → cloud PostgreSQL
 
@@ -404,6 +404,13 @@ CREATE TABLE retro_entries (
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- user_settings (one row per user, created on first login)
+CREATE TABLE user_settings (
+  user_id                     TEXT PRIMARY KEY,  -- Clerk userId
+  gdpr_notice_dismissed_at    TIMESTAMPTZ,
+  created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- goals
 CREATE TABLE goals (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -634,9 +641,11 @@ Generate one paragraph: what this player demands from you and which lever to use
 
 ## 9. Open Questions
 
-- [ ] OQ-1: How should the user navigate to the Player Profile screen? The intake specifies "Play" and "Observe" as the two tap actions. A third action ("Profil ansehen") needs to be added to the player tap modal, or the profile must be accessible via swipe/long-press. **Recommended:** add "Profil" as a third option in the modal. Needs human confirmation.
-- [ ] OQ-2: Should match-view show a set counter / current set indicator? The retest block references "Satzwechsel" and "set_number" is in MatchObservation, but the intake does not specify a set-tracking UI element. **Recommended:** add a simple "Satz: 1 / 2 / 3" toggle at the top of match-view that auto-increments observations. Needs human confirmation.
-- [ ] OQ-3: GDPR notice — player names in AI call payloads and stored server-side. A brief notice should be shown to the user on first login explaining that match data is stored in EU cloud infrastructure and that AI features send match data to Anthropic's API (US). Should this be a dismissible modal (one-time, stored in DB per user) or accepted as part of sign-up terms? **Recommended:** one-time dismissible modal shown after first sign-in, dismissed state stored in DB.
-- [ ] OQ-4: Short labels for predefined goals — the intake specifies `short_label` max 40 chars but does not provide short labels for the 17 predefined goals. The scaffold agent will derive them as the first 40 chars of each goal text. Confirm this is acceptable or provide explicit short labels.
-- [ ] OQ-5: Observe mode retrospective — intake says "only analysis quality block" for observe mode, but it's unclear whether the AI synergy call is made at all, or just skipped. **Recommended:** skip AI call in observe mode; save only the 3 analysis questions as a reduced RetroEntry. Needs human confirmation.
-- [ ] OQ-6: Offline capability — v1 browser-local spec included offline support. With Neon + Clerk, offline is not supported (all reads/writes require network). Should the app show a clear "Du bist offline — Daten werden gespeichert sobald du wieder verbunden bist" message, or is offline simply out-of-scope for v1? **Recommended:** out-of-scope for v1; show a network error state if DB is unreachable. Needs human confirmation.
+All open questions resolved. Decisions recorded below.
+
+- [x] OQ-1: Player Profile navigation — **RESOLVED:** "Profil" as third option in the player tap modal (alongside "Spielen" and "Beobachten").
+- [x] OQ-2: Set counter in match-view — **RESOLVED:** Simple "Satz: 1 / 2 / 3" toggle at the top of match-view. Auto-increments `set_number` on observations.
+- [x] OQ-3: GDPR notice — **RESOLVED:** One-time dismissible modal shown after first sign-in. Dismissed state stored as a column `gdpr_notice_dismissed_at` in a `user_settings` table.
+- [x] OQ-4: Short labels — **RESOLVED:** First 40 characters of each goal text used as `short_label`. Applied during seed.
+- [x] OQ-5: Observe mode AI — **RESOLVED:** AI synergy call is skipped in observe mode. Only the 3 analysis questions (Q1–Q3) are saved as a reduced RetroEntry (goal fields left null).
+- [x] OQ-6: Offline — **RESOLVED:** Offline is out-of-scope for v1. App shows a generic network error state when DB or Clerk is unreachable.
