@@ -25,7 +25,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     getGoalsByIds(userId, selectedGoalIds),
   ])
 
-  if (!player || !profile) return NextResponse.json({ error: 'Spieler nicht gefunden' }, { status: 404 })
+  if (!player || !profile)
+    return NextResponse.json({ error: 'Spieler nicht gefunden' }, { status: 404 })
 
   const profileText = `Spieler: ${player.name} | Raum: ${profile.raumStatus} | Höhe: ${profile.hoeheStatus} | Mental: ${profile.mentalStatus}`
   const goalsText = selectedGoals.map((g) => g.shortLabel).join(', ')
@@ -36,10 +37,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       max_tokens: 150,
       temperature: 0.3,
       system: SYSTEM_PROMPT,
-      messages: [{
-        role: 'user',
-        content: `${profileText}\nMeine 3 Ziele: ${goalsText}\nGeneriere einen Satz: die taktische Einstiegshypothese für dieses Match.`,
-      }],
+      messages: [
+        {
+          role: 'user',
+          content: `${profileText}\nMeine 3 Ziele: ${goalsText}\nGeneriere einen Satz: die taktische Einstiegshypothese für dieses Match.`,
+        },
+      ],
     })
     const textBlock = message.content[0]
     const briefing = textBlock?.type === 'text' ? textBlock.text : ''

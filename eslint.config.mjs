@@ -10,11 +10,7 @@ const compat = new FlatCompat({ baseDirectory: __dirname })
 const eslintConfig = [
   // CRITICAL: ignores must be first element — ESLint v9 flat config ignores .eslintignore
   { ignores: ['.next/**', 'node_modules/**', 'drizzle/**'] },
-  ...compat.extends(
-    'next/core-web-vitals',
-    'next/typescript',
-    'plugin:jsx-a11y/recommended'
-  ),
+  ...compat.extends('next/core-web-vitals', 'next/typescript', 'plugin:jsx-a11y/recommended'),
   {
     rules: {
       'no-console': 'error',

@@ -16,7 +16,7 @@ export function LoadingSpinner({
   return (
     <div role="status" aria-label={label} className="inline-flex items-center gap-2">
       <div
-        className={`animate-spin rounded-full border-slate-200 border-t-navy-900 ${sizeClasses[size]}`}
+        className={`border-t-navy-900 animate-spin rounded-full border-slate-200 ${sizeClasses[size]}`}
       />
       <span className="sr-only">{label}</span>
     </div>

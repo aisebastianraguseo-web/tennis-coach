@@ -7,11 +7,7 @@ export async function getGoals(userId: string, includeArchived = false) {
     ? eq(goals.userId, userId)
     : and(eq(goals.userId, userId), eq(goals.isArchived, false))
 
-  return db
-    .select()
-    .from(goals)
-    .where(conditions)
-    .orderBy(goals.category, asc(goals.createdAt))
+  return db.select().from(goals).where(conditions).orderBy(goals.category, asc(goals.createdAt))
 }
 
 export async function getGoalsByIds(userId: string, ids: string[]) {

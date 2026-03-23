@@ -22,17 +22,21 @@ export function PlayerActionDialog({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Aktionen für ${playerName}`}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
-    >
-      <div className="w-full max-w-lg rounded-t-2xl bg-white pb-8 pt-4 shadow-xl">
-        <div className="mb-4 flex items-center justify-between px-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+        aria-label="Hintergrund schließen"
+        tabIndex={-1}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Aktionen für ${playerName}`}
+        className="relative w-full max-w-lg rounded-t-2xl bg-white p-4 pb-8 shadow-xl"
+      >
+        <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-800">{playerName}</h2>
           <button
             onClick={onClose}
@@ -42,7 +46,7 @@ export function PlayerActionDialog({
             ✕
           </button>
         </div>
-        <div className="flex flex-col gap-3 px-4">
+        <div className="flex flex-col gap-3">
           <Button
             size="touch"
             variant="primary"
@@ -57,11 +61,7 @@ export function PlayerActionDialog({
           >
             👁 Beobachten
           </Button>
-          <Button
-            size="touch"
-            variant="ghost"
-            onClick={() => navigate(`/spieler/${playerId}`)}
-          >
+          <Button size="touch" variant="ghost" onClick={() => navigate(`/spieler/${playerId}`)}>
             📋 Profil ansehen
           </Button>
         </div>

@@ -14,10 +14,6 @@ export default async function FortschrittPage(): Promise<React.JSX.Element> {
   ])
 
   return (
-    <ProgressView
-      matchSummaries={matchSummaries}
-      goalStats={goalStats}
-      leverStats={leverStats}
-    />
+    <ProgressView matchSummaries={matchSummaries} goalStats={goalStats} leverStats={leverStats} />
   )
 }

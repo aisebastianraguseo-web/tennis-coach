@@ -58,13 +58,9 @@ function ClusterRow({
     <div className="flex items-center justify-between py-3">
       <div>
         <span className="font-medium text-slate-800">{label}</span>
-        {sublever !== 'none' && (
-          <span className="ml-2 text-xs text-slate-500">({sublever})</span>
-        )}
+        {sublever !== 'none' && <span className="ml-2 text-xs text-slate-500">({sublever})</span>}
       </div>
-      <span
-        className={`rounded-full px-3 py-1 text-sm font-semibold ${statusClasses[status]}`}
-      >
+      <span className={`rounded-full px-3 py-1 text-sm font-semibold ${statusClasses[status]}`}>
         {statusLabel[status]}
       </span>
     </div>
@@ -106,48 +102,51 @@ export function PlayerProfileView({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold text-navy-900">{playerName}</h1>
+      <h1 className="text-navy-900 text-xl font-bold">{playerName}</h1>
 
       {/* Cluster Stability */}
       <section aria-label="Cluster-Stabilität">
-        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <h2 className="mb-1 text-sm font-semibold tracking-wide text-slate-500 uppercase">
           Cluster-Stabilität
         </h2>
         <div className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white px-4">
           <ClusterRow label="Raum" status={profile.raumStatus} sublever={profile.raumSublever} />
           <ClusterRow label="Höhe" status={profile.hoeheStatus} sublever={profile.hoeheSublever} />
-          <ClusterRow label="Mental" status={profile.mentalStatus} sublever={profile.mentalPattern} />
+          <ClusterRow
+            label="Mental"
+            status={profile.mentalStatus}
+            sublever={profile.mentalPattern}
+          />
         </div>
       </section>
 
       {/* AI Summary */}
       <section aria-label="KI-Zusammenfassung">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          <h2 className="text-sm font-semibold tracking-wide text-slate-500 uppercase">
             KI-Zusammenfassung
           </h2>
-          <Button
-            variant="secondary"
-            size="sm"
-            isLoading={isLoadingAi}
-            onClick={handleAiRefresh}
-          >
+          <Button variant="secondary" size="sm" isLoading={isLoadingAi} onClick={handleAiRefresh}>
             Aktualisieren
           </Button>
         </div>
         <AiCard text={aiText} isLoading={isLoadingAi} error={aiError} />
-        {aiError && <div className="mt-2"><ErrorMessage message={aiError} /></div>}
+        {aiError && (
+          <div className="mt-2">
+            <ErrorMessage message={aiError} />
+          </div>
+        )}
       </section>
 
       {/* Match History */}
       <section aria-label="Matchhistorie">
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <h2 className="mb-2 text-sm font-semibold tracking-wide text-slate-500 uppercase">
           Matchhistorie
         </h2>
         {matchHistory.length === 0 ? (
           <p className="text-sm text-slate-500">Noch keine Matches gespeichert.</p>
         ) : (
-          <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white" role="list">
+          <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
             {matchHistory.map((m) => (
               <li key={m.id}>
                 <button
@@ -160,7 +159,9 @@ export function PlayerProfileView({
                   </span>
                   <span
                     className={`rounded px-2 py-0.5 text-sm font-semibold ${
-                      m.result === 'W' ? 'bg-stable-bg text-stable-text' : 'bg-instabil-bg text-instabil-text'
+                      m.result === 'W'
+                        ? 'bg-stable-bg text-stable-text'
+                        : 'bg-instabil-bg text-instabil-text'
                     }`}
                   >
                     {m.result ?? '?'} {m.score}

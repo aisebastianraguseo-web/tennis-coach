@@ -26,7 +26,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     getGoalsByIds(userId, selectedGoalIds),
   ])
 
-  if (!player || !profile) return NextResponse.json({ error: 'Spieler nicht gefunden' }, { status: 404 })
+  if (!player || !profile)
+    return NextResponse.json({ error: 'Spieler nicht gefunden' }, { status: 404 })
 
   // Persist the latest cluster observations
   const clusters = [
@@ -37,7 +38,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   for (const c of clusters) {
     if (c.status !== 'unknown') {
       await saveObservation({
-        userId, matchId, playerId,
+        userId,
+        matchId,
+        playerId,
         setNumber: 1,
         cluster: c.cluster,
         status: c.status as 'stabil' | 'instabil' | 'unknown',
@@ -56,10 +59,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       max_tokens: 150,
       temperature: 0.3,
       system: SYSTEM_PROMPT,
-      messages: [{
-        role: 'user',
-        content: `${profileText}\n${clusterText}\nBeobachtung: ${observation ?? 'keine'}\nMeine Ziele: ${goalsText}\nGeneriere einen Satz: die beste taktische Anpassung für das nächste Game.`,
-      }],
+      messages: [
+        {
+          role: 'user',
+          content: `${profileText}\n${clusterText}\nBeobachtung: ${observation ?? 'keine'}\nMeine Ziele: ${goalsText}\nGeneriere einen Satz: die beste taktische Anpassung für das nächste Game.`,
+        },
+      ],
     })
     const textBlock = message.content[0]
     const recommendation = textBlock?.type === 'text' ? textBlock.text : ''

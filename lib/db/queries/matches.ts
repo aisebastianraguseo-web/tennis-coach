@@ -34,7 +34,12 @@ export async function getMatchById(userId: string, matchId: string) {
   return rows[0] ?? null
 }
 
-export async function endMatch(userId: string, matchId: string, result: 'W' | 'L' | null, score: string) {
+export async function endMatch(
+  userId: string,
+  matchId: string,
+  result: 'W' | 'L' | null,
+  score: string
+) {
   await db
     .update(matches)
     .set({ result, score, endedAt: new Date() })
@@ -100,10 +105,7 @@ export async function getAllMatches(userId: string) {
 }
 
 export async function getAllRetroEntries(userId: string) {
-  return db
-    .select()
-    .from(retroEntries)
-    .where(eq(retroEntries.userId, userId))
+  return db.select().from(retroEntries).where(eq(retroEntries.userId, userId))
 }
 
 export async function getGoalsForMatch(userId: string, goalIds: string[]) {

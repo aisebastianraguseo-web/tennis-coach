@@ -25,11 +25,7 @@ export const mentalPatternEnum = pgEnum('mental_pattern', [
 export const matchModeEnum = pgEnum('match_mode', ['play', 'observe'])
 export const matchResultEnum = pgEnum('match_result', ['W', 'L'])
 export const clusterEnum = pgEnum('cluster', ['raum', 'hoehe', 'mental'])
-export const retestTriggerEnum = pgEnum('retest_trigger', [
-  'satzwechsel',
-  'break',
-  'drei_games',
-])
+export const retestTriggerEnum = pgEnum('retest_trigger', ['satzwechsel', 'break', 'drei_games'])
 export const goalResultEnum = pgEnum('goal_result', ['ja', 'teilweise', 'nein'])
 export const leverEnum = pgEnum('lever', ['raum', 'hoehe', 'mental', 'keiner'])
 export const goalCategoryEnum = pgEnum('goal_category', [

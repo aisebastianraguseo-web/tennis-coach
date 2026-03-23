@@ -29,7 +29,12 @@ const CATEGORY_LABELS: Record<GoalCategory, string> = {
 }
 
 const CATEGORY_ORDER: GoalCategory[] = [
-  'bewegung', 'technik', 'taktik', 'aufschlag', 'koerper', 'sonstige',
+  'bewegung',
+  'technik',
+  'taktik',
+  'aufschlag',
+  'koerper',
+  'sonstige',
 ]
 
 export function GoalLibraryView({ goals: initialGoals }: GoalLibraryViewProps): React.JSX.Element {
@@ -53,7 +58,10 @@ export function GoalLibraryView({ goals: initialGoals }: GoalLibraryViewProps): 
     const formData = new FormData(form)
     startAddTransition(async () => {
       const result = await addGoal(formData)
-      if (result.error) { setAddError(result.error); return }
+      if (result.error) {
+        setAddError(result.error)
+        return
+      }
       form.reset()
       setShowAddForm(false)
     })
@@ -68,7 +76,7 @@ export function GoalLibraryView({ goals: initialGoals }: GoalLibraryViewProps): 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-navy-900">Meine Ziele</h1>
+        <h1 className="text-navy-900 text-xl font-bold">Meine Ziele</h1>
         <button
           onClick={() => setShowArchived((v) => !v)}
           className="text-sm text-slate-500 underline"
@@ -82,15 +90,17 @@ export function GoalLibraryView({ goals: initialGoals }: GoalLibraryViewProps): 
         if (catGoals.length === 0) return null
         return (
           <section key={cat} aria-label={CATEGORY_LABELS[cat]}>
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+            <h2 className="mb-2 text-sm font-semibold tracking-wide text-slate-500 uppercase">
               {CATEGORY_LABELS[cat]}
             </h2>
-            <ul className="space-y-2" role="list">
+            <ul className="space-y-2">
               {catGoals.map((goal) => (
                 <li
                   key={goal.id}
                   className={`flex items-start gap-3 rounded-lg border p-3 ${
-                    goal.isArchived ? 'border-slate-100 bg-slate-50 opacity-60' : 'border-slate-200 bg-white'
+                    goal.isArchived
+                      ? 'border-slate-100 bg-slate-50 opacity-60'
+                      : 'border-slate-200 bg-white'
                   }`}
                 >
                   <p className="min-w-0 flex-1 text-sm text-slate-800">{goal.text}</p>
@@ -124,10 +134,13 @@ export function GoalLibraryView({ goals: initialGoals }: GoalLibraryViewProps): 
               required
               maxLength={500}
               rows={3}
-              className="mb-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-navy-900 focus:outline-none focus:ring-1 focus:ring-navy-900"
+              className="focus:border-navy-900 focus:ring-navy-900 mb-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:ring-1 focus:outline-none"
               placeholder="Beschreibe dein Ziel…"
             />
-            <label htmlFor="goal-category" className="mb-1 block text-sm font-medium text-slate-700">
+            <label
+              htmlFor="goal-category"
+              className="mb-1 block text-sm font-medium text-slate-700"
+            >
               Kategorie
             </label>
             <select
@@ -137,7 +150,9 @@ export function GoalLibraryView({ goals: initialGoals }: GoalLibraryViewProps): 
               defaultValue="sonstige"
             >
               {CATEGORY_ORDER.map((cat) => (
-                <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+                <option key={cat} value={cat}>
+                  {CATEGORY_LABELS[cat]}
+                </option>
               ))}
             </select>
             {addError && <ErrorMessage message={addError} />}

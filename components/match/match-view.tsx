@@ -7,7 +7,10 @@ import { Button } from '@/components/ui/button'
 import { endMatch } from '@/app/(app)/spieler/[id]/match/[matchId]/actions'
 import type { ClusterStatus } from '@/types/domain'
 
-interface MatchGoal { id: string; text: string }
+interface MatchGoal {
+  id: string
+  text: string
+}
 
 interface MatchViewProps {
   matchId: string
@@ -38,7 +41,10 @@ interface ClusterState {
 type ClusterKey = keyof ClusterState
 
 function ClusterGroup({
-  label, clusterKey, value, onChange,
+  label,
+  clusterKey,
+  value,
+  onChange,
 }: {
   label: string
   clusterKey: ClusterKey
@@ -46,11 +52,7 @@ function ClusterGroup({
   onChange: (key: ClusterKey, val: ClusterStatus) => void
 }): React.JSX.Element {
   return (
-    <div
-      role="radiogroup"
-      aria-label={`Cluster ${label}`}
-      className="flex items-center gap-2"
-    >
+    <div role="radiogroup" aria-label={`Cluster ${label}`} className="flex items-center gap-2">
       <span className="w-16 text-sm font-semibold text-slate-700">{label}</span>
       {CLUSTER_BUTTONS.map((btn) => (
         <button
@@ -71,9 +73,19 @@ function ClusterGroup({
   )
 }
 
-export function MatchView({ matchId, playerId, playerName, selectedGoals, aiBriefing }: MatchViewProps): React.JSX.Element {
+export function MatchView({
+  matchId,
+  playerId,
+  playerName,
+  selectedGoals,
+  aiBriefing,
+}: MatchViewProps): React.JSX.Element {
   const router = useRouter()
-  const [clusters, setClusters] = useState<ClusterState>({ raum: 'unknown', hoehe: 'unknown', mental: 'unknown' })
+  const [clusters, setClusters] = useState<ClusterState>({
+    raum: 'unknown',
+    hoehe: 'unknown',
+    mental: 'unknown',
+  })
   const [observation, setObservation] = useState('')
   const [setNumber, setSetNumber] = useState(1)
   const [aiRec, setAiRec] = useState<string | null>(aiBriefing || null)
@@ -99,16 +111,26 @@ export function MatchView({ matchId, playerId, playerName, selectedGoals, aiBrie
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            playerId, matchId,
-            clusterState: { raum: clusterState.raum, hoehe: clusterState.hoehe, mental: clusterState.mental },
+            playerId,
+            matchId,
+            clusterState: {
+              raum: clusterState.raum,
+              hoehe: clusterState.hoehe,
+              mental: clusterState.mental,
+            },
             observation: observation || undefined,
             selectedGoalIds: selectedGoals.map((g) => g.id),
           }),
         })
         const data = (await res.json()) as { recommendation?: string; error?: string }
-        if (!res.ok || data.error) { setAiError(data.error ?? 'Fehler'); return }
+        if (!res.ok || data.error) {
+          setAiError(data.error ?? 'Fehler')
+          return
+        }
         setAiRec(data.recommendation ?? '')
-      } catch { setAiError('Netzwerkfehler') }
+      } catch {
+        setAiError('Netzwerkfehler')
+      }
     })
   }
 
@@ -123,7 +145,7 @@ export function MatchView({ matchId, playerId, playerName, selectedGoals, aiBrie
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold text-navy-900">{playerName}</h1>
+        <h1 className="text-navy-900 text-lg font-bold">{playerName}</h1>
         <div className="flex items-center gap-1" role="group" aria-label="Aktueller Satz">
           {[1, 2, 3].map((s) => (
             <button
@@ -142,24 +164,46 @@ export function MatchView({ matchId, playerId, playerName, selectedGoals, aiBrie
       <AiCard text={aiRec} isLoading={isLoadingAi} error={aiError} aria-label="KI-Empfehlung" />
 
       {/* Cluster Toggles */}
-      <section aria-label="Cluster-Status" className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
-        <ClusterGroup label="Raum" clusterKey="raum" value={clusters.raum} onChange={handleClusterChange} />
-        <ClusterGroup label="Höhe" clusterKey="hoehe" value={clusters.hoehe} onChange={handleClusterChange} />
-        <ClusterGroup label="Mental" clusterKey="mental" value={clusters.mental} onChange={handleClusterChange} />
+      <section
+        aria-label="Cluster-Status"
+        className="space-y-3 rounded-lg border border-slate-200 bg-white p-4"
+      >
+        <ClusterGroup
+          label="Raum"
+          clusterKey="raum"
+          value={clusters.raum}
+          onChange={handleClusterChange}
+        />
+        <ClusterGroup
+          label="Höhe"
+          clusterKey="hoehe"
+          value={clusters.hoehe}
+          onChange={handleClusterChange}
+        />
+        <ClusterGroup
+          label="Mental"
+          clusterKey="mental"
+          value={clusters.mental}
+          onChange={handleClusterChange}
+        />
       </section>
 
       {/* Observation */}
       <div>
-        <label htmlFor="observation" className="sr-only">Beobachtung</label>
+        <label htmlFor="observation" className="sr-only">
+          Beobachtung
+        </label>
         <input
           id="observation"
           type="text"
           maxLength={100}
           value={observation}
           onChange={(e) => setObservation(e.target.value)}
-          onBlur={() => { if (observation) fetchAi(clusters) }}
+          onBlur={() => {
+            if (observation) fetchAi(clusters)
+          }}
           placeholder="Beobachtung (optional)…"
-          className="w-full rounded-lg border border-slate-200 px-4 py-3 text-base focus:border-navy-900 focus:outline-none focus:ring-1 focus:ring-navy-900"
+          className="focus:border-navy-900 focus:ring-navy-900 w-full rounded-lg border border-slate-200 px-4 py-3 text-base focus:ring-1 focus:outline-none"
         />
       </div>
 
@@ -173,7 +217,9 @@ export function MatchView({ matchId, playerId, playerName, selectedGoals, aiBrie
         </summary>
         <ul className="divide-y divide-slate-100 px-4 pb-3">
           {selectedGoals.map((g) => (
-            <li key={g.id} className="py-2 text-sm text-slate-700">{g.text}</li>
+            <li key={g.id} className="py-2 text-sm text-slate-700">
+              {g.text}
+            </li>
           ))}
         </ul>
       </details>
@@ -194,7 +240,9 @@ export function MatchView({ matchId, playerId, playerName, selectedGoals, aiBrie
       {/* Score */}
       <div className="flex gap-3">
         <div className="flex-1">
-          <label htmlFor="result-select" className="mb-1 block text-xs text-slate-500">Ergebnis</label>
+          <label htmlFor="result-select" className="mb-1 block text-xs text-slate-500">
+            Ergebnis
+          </label>
           <select
             id="result-select"
             value={result}
@@ -207,7 +255,9 @@ export function MatchView({ matchId, playerId, playerName, selectedGoals, aiBrie
           </select>
         </div>
         <div className="flex-1">
-          <label htmlFor="score-input" className="mb-1 block text-xs text-slate-500">Score</label>
+          <label htmlFor="score-input" className="mb-1 block text-xs text-slate-500">
+            Score
+          </label>
           <input
             id="score-input"
             type="text"

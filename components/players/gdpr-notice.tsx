@@ -32,17 +32,12 @@ export function GdprNotice(): React.JSX.Element {
             gespeichert (Neon PostgreSQL, Region eu-central-1).
           </p>
           <p>
-            Die KI-Coaching-Funktion sendet Match- und Profildaten zur Analyse an die
-            Anthropic API (US-Server). Diese Daten werden nicht dauerhaft dort gespeichert.
+            Die KI-Coaching-Funktion sendet Match- und Profildaten zur Analyse an die Anthropic API
+            (US-Server). Diese Daten werden nicht dauerhaft dort gespeichert.
           </p>
           <p>Du kannst die KI-Funktion jederzeit nicht nutzen.</p>
         </div>
-        <Button
-          variant="primary"
-          size="touch"
-          isLoading={isPending}
-          onClick={handleDismiss}
-        >
+        <Button variant="primary" size="touch" isLoading={isPending} onClick={handleDismiss}>
           Verstanden, weiter
         </Button>
       </div>

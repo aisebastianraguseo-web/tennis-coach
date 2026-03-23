@@ -24,7 +24,7 @@ export function PlayerList({ players }: PlayerListProps): React.JSX.Element {
   return (
     <section aria-label="Spielerliste">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-navy-900">Meine Gegner</h1>
+        <h1 className="text-navy-900 text-xl font-bold">Meine Gegner</h1>
         <Button
           variant="secondary"
           size="sm"
@@ -36,9 +36,11 @@ export function PlayerList({ players }: PlayerListProps): React.JSX.Element {
       </div>
 
       {players.length === 0 ? (
-        <p className="py-8 text-center text-slate-500">Noch keine Spieler. Füge deinen ersten hinzu.</p>
+        <p className="py-8 text-center text-slate-500">
+          Noch keine Spieler. Füge deinen ersten hinzu.
+        </p>
       ) : (
-        <ul className="divide-y divide-slate-100" role="list">
+        <ul className="divide-y divide-slate-100">
           {players.map((player) => (
             <li key={player.id}>
               <button
@@ -56,12 +58,12 @@ export function PlayerList({ players }: PlayerListProps): React.JSX.Element {
                   <p className="truncate font-medium text-slate-900">{player.name}</p>
                   <p className="text-sm text-slate-500">
                     {player.matchCount} {player.matchCount === 1 ? 'Match' : 'Matches'}
-                    {player.lastMatchDate && (
-                      <> · {formatDate(player.lastMatchDate)}</>
-                    )}
+                    {player.lastMatchDate && <> · {formatDate(player.lastMatchDate)}</>}
                   </p>
                 </div>
-                <span aria-hidden="true" className="text-slate-400">›</span>
+                <span aria-hidden="true" className="text-slate-400">
+                  ›
+                </span>
               </button>
             </li>
           ))}
@@ -76,9 +78,7 @@ export function PlayerList({ players }: PlayerListProps): React.JSX.Element {
         />
       )}
 
-      {showAddDialog && (
-        <AddPlayerDialog onClose={() => setShowAddDialog(false)} />
-      )}
+      {showAddDialog && <AddPlayerDialog onClose={() => setShowAddDialog(false)} />}
     </section>
   )
 }

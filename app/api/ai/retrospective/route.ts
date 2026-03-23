@@ -18,21 +18,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const parsed = retrospectiveSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: 'Ungültige Anfrage' }, { status: 400 })
 
-  const { playerId, matchId: _matchId, goalResults, strongestLever } = parsed.data
+  const { playerId, goalResults, strongestLever } = parsed.data
   const [player, profile] = await Promise.all([
     getPlayerById(userId, playerId),
     getProfile(userId, playerId),
   ])
 
-  if (!player || !profile) return NextResponse.json({ error: 'Spieler nicht gefunden' }, { status: 404 })
+  if (!player || !profile)
+    return NextResponse.json({ error: 'Spieler nicht gefunden' }, { status: 404 })
 
   const goalIds = goalResults.map((g) => g.goalId)
   const goals = await getGoalsByIds(userId, goalIds)
 
-  const goalsText = goalResults.map((gr) => {
-    const g = goals.find((x) => x.id === gr.goalId)
-    return `${g?.shortLabel ?? 'Ziel'}: ${gr.result}`
-  }).join(', ')
+  const goalsText = goalResults
+    .map((gr) => {
+      const g = goals.find((x) => x.id === gr.goalId)
+      return `${g?.shortLabel ?? 'Ziel'}: ${gr.result}`
+    })
+    .join(', ')
 
   const profileText = `Spieler: ${player.name} | Stärkster Hebel: ${strongestLever}`
 
@@ -42,10 +45,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       max_tokens: 200,
       temperature: 0.3,
       system: SYSTEM_PROMPT,
-      messages: [{
-        role: 'user',
-        content: `${profileText}\nZiele: ${goalsText}\nGeneriere 2–3 Sätze: Welches Ziel hatte Synergie mit dem stärksten Hebel und was teste ich beim nächsten Match?`,
-      }],
+      messages: [
+        {
+          role: 'user',
+          content: `${profileText}\nZiele: ${goalsText}\nGeneriere 2–3 Sätze: Welches Ziel hatte Synergie mit dem stärksten Hebel und was teste ich beim nächsten Match?`,
+        },
+      ],
     })
     const textBlock = message.content[0]
     const feedback = textBlock?.type === 'text' ? textBlock.text : ''

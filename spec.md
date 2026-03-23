@@ -451,6 +451,7 @@ Neon does not provide built-in Row Level Security. Access control is enforced at
 ### 4.5 Seed Data (on first login)
 
 When a user logs in for the first time (detected by absence of rows in `players` for their `user_id`), a seed Server Action inserts:
+
 - 16 predefined players
 - 17 predefined goals (as specified in intake)
 
@@ -461,21 +462,23 @@ This runs once per user, idempotently gated by `WHERE user_id = :userId AND is_p
 ## 5. API Surface
 
 The app uses two types of server-side data access:
+
 - **Server Actions** — for all CRUD operations (players, goals, matches, observations, retro). Called from Client Components via `use server`.
 - **Route Handlers** — for AI calls only (streaming-compatible, returns plain text).
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/api/ai/pre-match` | Clerk session required | Generate one-sentence tactical briefing |
-| POST | `/api/ai/changeover` | Clerk session required | Generate one-sentence changeover recommendation |
-| POST | `/api/ai/retrospective` | Clerk session required | Generate 2–3 sentence synergy feedback |
-| POST | `/api/ai/player-summary` | Clerk session required | Generate AI player profile summary paragraph |
+| Method | Path                     | Auth                   | Description                                     |
+| ------ | ------------------------ | ---------------------- | ----------------------------------------------- |
+| POST   | `/api/ai/pre-match`      | Clerk session required | Generate one-sentence tactical briefing         |
+| POST   | `/api/ai/changeover`     | Clerk session required | Generate one-sentence changeover recommendation |
+| POST   | `/api/ai/retrospective`  | Clerk session required | Generate 2–3 sentence synergy feedback          |
+| POST   | `/api/ai/player-summary` | Clerk session required | Generate AI player profile summary paragraph    |
 
 All Route Handlers call `auth()` from Clerk at the top and return 401 if no session is present. The `ANTHROPIC_API_KEY` is held server-side and never exposed to the client.
 
 ### Claude API Call Specifications
 
 **Shared system prompt (all calls):**
+
 ```
 You are a tactical tennis coach assistant using the 3-Cluster analysis system.
 
@@ -499,6 +502,7 @@ Response rules:
 ```
 
 **`/api/ai/pre-match` prompt:**
+
 ```
 Player profile: {serialised profile}
 Selected goals: {goal texts}
@@ -506,6 +510,7 @@ Generate a single sentence: the tactical entry hypothesis for this match.
 ```
 
 **`/api/ai/changeover` prompt:**
+
 ```
 Player profile: {serialised profile}
 Current cluster state — Raum: {status}, Höhe: {status}, Mental: {status}
@@ -515,6 +520,7 @@ Generate a single sentence: the best tactical adjustment for the next game.
 ```
 
 **`/api/ai/retrospective` prompt:**
+
 ```
 Player profile: {serialised profile}
 Match cluster summary: {cluster states}
@@ -524,6 +530,7 @@ Generate 2-3 sentences evaluating which goal had synergy with the strongest leve
 ```
 
 **`/api/ai/player-summary` prompt:**
+
 ```
 Player profile: {serialised profile}
 Match history (last 5): {serialised matches with observations}
@@ -571,11 +578,11 @@ Generate one paragraph: what this player demands from you and which lever to use
 ### 6.4 Browser / Platform Support
 
 | Browser | Minimum Version |
-|---------|----------------|
-| Chrome  | 120+           |
-| Firefox | 120+           |
-| Safari  | 17+            |
-| Edge    | 120+           |
+| ------- | --------------- |
+| Chrome  | 120+            |
+| Firefox | 120+            |
+| Safari  | 17+             |
+| Edge    | 120+            |
 
 - Mobile-first: designed for portrait, one-handed operation
 - No horizontal scrolling on any viewport 320px–2560px
@@ -594,19 +601,19 @@ Generate one paragraph: what this player demands from you and which lever to use
 
 ## 7. Out of Scope
 
-| Item | Notes |
-|------|-------|
-| User authentication / accounts | Single-user local app. No login. V2 candidate if cloud sync added. |
-| Cloud sync / multi-device support | V2 — would require Supabase Auth + DB. |
-| Push notifications / match reminders | V2. |
-| Video or photo attachments | V2. |
-| Social features / sharing profiles | Out of scope permanently. |
-| Native iOS/Android app | Web-only in v1. |
-| Opponent self-registration | Not in scope — app is for the player's own use only. |
-| Statistical analysis beyond 3 progress metrics | V2. |
-| Real-time match scoring integration | Not in scope. |
-| OAuth (Google, Apple) | N/A — no accounts in v1. |
-| Export / backup functionality | V2. |
+| Item                                           | Notes                                                              |
+| ---------------------------------------------- | ------------------------------------------------------------------ |
+| User authentication / accounts                 | Single-user local app. No login. V2 candidate if cloud sync added. |
+| Cloud sync / multi-device support              | V2 — would require Supabase Auth + DB.                             |
+| Push notifications / match reminders           | V2.                                                                |
+| Video or photo attachments                     | V2.                                                                |
+| Social features / sharing profiles             | Out of scope permanently.                                          |
+| Native iOS/Android app                         | Web-only in v1.                                                    |
+| Opponent self-registration                     | Not in scope — app is for the player's own use only.               |
+| Statistical analysis beyond 3 progress metrics | V2.                                                                |
+| Real-time match scoring integration            | Not in scope.                                                      |
+| OAuth (Google, Apple)                          | N/A — no accounts in v1.                                           |
+| Export / backup functionality                  | V2.                                                                |
 
 ---
 

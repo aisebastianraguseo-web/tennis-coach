@@ -5,7 +5,7 @@ export default function RootLoading(): React.JSX.Element {
       role="status"
       aria-label="Wird geladen"
     >
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-navy-900" />
+      <div className="border-t-navy-900 h-8 w-8 animate-spin rounded-full border-4 border-slate-200" />
     </div>
   )
 }

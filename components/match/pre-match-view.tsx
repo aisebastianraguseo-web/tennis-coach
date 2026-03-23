@@ -28,14 +28,29 @@ interface PreMatchViewProps {
 }
 
 const CATEGORY_LABELS: Record<GoalCategory, string> = {
-  bewegung: 'Bewegung & Position', technik: 'Schlagtechnik',
-  taktik: 'Taktik & Strategie', aufschlag: 'Aufschlag',
-  koerper: 'Körper & Ausrichtung', sonstige: 'Sonstige',
+  bewegung: 'Bewegung & Position',
+  technik: 'Schlagtechnik',
+  taktik: 'Taktik & Strategie',
+  aufschlag: 'Aufschlag',
+  koerper: 'Körper & Ausrichtung',
+  sonstige: 'Sonstige',
 }
 
-const CATEGORY_ORDER: GoalCategory[] = ['bewegung', 'technik', 'taktik', 'aufschlag', 'koerper', 'sonstige']
+const CATEGORY_ORDER: GoalCategory[] = [
+  'bewegung',
+  'technik',
+  'taktik',
+  'aufschlag',
+  'koerper',
+  'sonstige',
+]
 
-export function PreMatchView({ playerId, playerName, profile, goals }: PreMatchViewProps): React.JSX.Element {
+export function PreMatchView({
+  playerId,
+  playerName,
+  profile,
+  goals,
+}: PreMatchViewProps): React.JSX.Element {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [aiBriefing, setAiBriefing] = useState<string | null>(null)
   const [aiError, setAiError] = useState<string | null>(null)
@@ -60,9 +75,14 @@ export function PreMatchView({ playerId, playerName, profile, goals }: PreMatchV
           body: JSON.stringify({ playerId, selectedGoalIds: selectedIds }),
         })
         const data = (await res.json()) as { briefing?: string; error?: string }
-        if (!res.ok || data.error) { setAiError(data.error ?? 'Fehler'); return }
+        if (!res.ok || data.error) {
+          setAiError(data.error ?? 'Fehler')
+          return
+        }
         setAiBriefing(data.briefing ?? '')
-      } catch { setAiError('Netzwerkfehler') }
+      } catch {
+        setAiError('Netzwerkfehler')
+      }
     })
   }
 
@@ -80,17 +100,17 @@ export function PreMatchView({ playerId, playerName, profile, goals }: PreMatchV
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-navy-900">Vorbereitung: {playerName}</h1>
+        <h1 className="text-navy-900 text-xl font-bold">Vorbereitung: {playerName}</h1>
         <p className="mt-1 text-sm text-slate-500">
           Raum: {profile.raumStatus} · Höhe: {profile.hoeheStatus} · Mental: {profile.mentalStatus}
         </p>
         {profile.aiSummary && (
-          <p className="mt-2 text-sm italic text-slate-600">{profile.aiSummary}</p>
+          <p className="mt-2 text-sm text-slate-600 italic">{profile.aiSummary}</p>
         )}
       </div>
 
       <section aria-label="Zielauswahl">
-        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <h2 className="mb-1 text-sm font-semibold tracking-wide text-slate-500 uppercase">
           Wähle 3 Ziele ({selectedIds.length}/3)
         </h2>
         <div className="space-y-4">

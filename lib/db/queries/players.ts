@@ -27,10 +27,7 @@ export async function getPlayersForList(userId: string): Promise<PlayerListRow[]
     })
     .from(players)
     .leftJoin(profiles, eq(profiles.playerId, players.id))
-    .leftJoin(
-      matches,
-      and(eq(matches.playerId, players.id), eq(matches.userId, userId))
-    )
+    .leftJoin(matches, and(eq(matches.playerId, players.id), eq(matches.userId, userId)))
     .where(eq(players.userId, userId))
     .groupBy(
       players.id,

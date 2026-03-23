@@ -20,23 +20,15 @@ export function AiCard({
     <div
       aria-label={ariaLabel}
       aria-live="polite"
-      className={cn(
-        'min-h-[64px] rounded-lg p-4',
-        'bg-navy-900 text-white',
-        className
-      )}
+      className={cn('min-h-[64px] rounded-lg p-4', 'bg-navy-900 text-white', className)}
     >
-      {isLoading && (
-        <LoadingSpinner label="KI denkt nach…" size="sm" />
-      )}
-      {!isLoading && error && (
-        <p className="text-red-300 text-sm">{error}</p>
-      )}
+      {isLoading && <LoadingSpinner label="KI denkt nach…" size="sm" />}
+      {!isLoading && error && <p className="text-sm text-red-300">{error}</p>}
       {!isLoading && !error && text && (
-        <p className="text-[1.25rem] font-bold leading-snug">{text}</p>
+        <p className="text-[1.25rem] leading-snug font-bold">{text}</p>
       )}
       {!isLoading && !error && !text && (
-        <p className="text-slate-400 text-sm italic">Noch keine KI-Empfehlung</p>
+        <p className="text-sm text-slate-400 italic">Noch keine KI-Empfehlung</p>
       )}
     </div>
   )

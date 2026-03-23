@@ -43,9 +43,12 @@ export async function getGoalStats(userId: string): Promise<GoalStat[]> {
 
   const pairs: { goalId: string; result: GoalResult }[] = []
   for (const row of rows) {
-    if (row.goal1Id && row.goal1Result) pairs.push({ goalId: row.goal1Id, result: row.goal1Result as GoalResult })
-    if (row.goal2Id && row.goal2Result) pairs.push({ goalId: row.goal2Id, result: row.goal2Result as GoalResult })
-    if (row.goal3Id && row.goal3Result) pairs.push({ goalId: row.goal3Id, result: row.goal3Result as GoalResult })
+    if (row.goal1Id && row.goal1Result)
+      pairs.push({ goalId: row.goal1Id, result: row.goal1Result as GoalResult })
+    if (row.goal2Id && row.goal2Result)
+      pairs.push({ goalId: row.goal2Id, result: row.goal2Result as GoalResult })
+    if (row.goal3Id && row.goal3Result)
+      pairs.push({ goalId: row.goal3Id, result: row.goal3Result as GoalResult })
   }
 
   if (pairs.length === 0) return []
@@ -61,7 +64,10 @@ export async function getGoalStats(userId: string): Promise<GoalStat[]> {
     if (goalIds.includes(g.id)) categoryMap.set(g.id, g.category as GoalCategory)
   }
 
-  const stats = new Map<GoalCategory, { ja: number; teilweise: number; nein: number; total: number }>()
+  const stats = new Map<
+    GoalCategory,
+    { ja: number; teilweise: number; nein: number; total: number }
+  >()
   for (const pair of pairs) {
     const cat = categoryMap.get(pair.goalId)
     if (!cat) continue
