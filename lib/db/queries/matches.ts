@@ -90,6 +90,36 @@ export async function saveRetroEntry(data: {
   await db.insert(retroEntries).values(data)
 }
 
+export async function getLatestObservationsForMatch(
+  userId: string,
+  matchId: string
+): Promise<{
+  raum: 'stabil' | 'instabil' | null
+  hoehe: 'stabil' | 'instabil' | null
+  mental: 'stabil' | 'instabil' | null
+}> {
+  const rows = await db
+    .select()
+    .from(matchObservations)
+    .where(and(eq(matchObservations.matchId, matchId), eq(matchObservations.userId, userId)))
+    .orderBy(desc(matchObservations.createdAt))
+
+  const result: {
+    raum: 'stabil' | 'instabil' | null
+    hoehe: 'stabil' | 'instabil' | null
+    mental: 'stabil' | 'instabil' | null
+  } = { raum: null, hoehe: null, mental: null }
+
+  for (const row of rows) {
+    const cluster = row.cluster as 'raum' | 'hoehe' | 'mental'
+    const status = row.status as 'stabil' | 'instabil' | 'unknown'
+    if (result[cluster] === null && status !== 'unknown') {
+      result[cluster] = status
+    }
+  }
+  return result
+}
+
 export async function getAllMatches(userId: string) {
   return db
     .select({

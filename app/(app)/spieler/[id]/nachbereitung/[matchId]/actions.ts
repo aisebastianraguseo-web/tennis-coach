@@ -2,7 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
-import { saveRetroEntry } from '@/lib/db/queries/matches'
+import { saveRetroEntry, getLatestObservationsForMatch } from '@/lib/db/queries/matches'
 import { db } from '@/lib/db'
 import { profiles } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
@@ -25,9 +25,6 @@ const submitRetroSchema = z.object({
   missedSignalNote: z.string().max(500),
   nextTestNote: z.string().max(500),
   aiSynergyFeedback: z.string().max(1000),
-  raumStatus: z.enum(['stabil', 'instabil', 'unknown']).optional(),
-  hoeheStatus: z.enum(['stabil', 'instabil', 'unknown']).optional(),
-  mentalStatus: z.enum(['stabil', 'instabil', 'unknown']).optional(),
 })
 
 export async function submitRetrospective(data: unknown): Promise<{ error?: string }> {
@@ -58,16 +55,17 @@ export async function submitRetrospective(data: unknown): Promise<{ error?: stri
       aiSynergyFeedback: d.aiSynergyFeedback,
     })
 
-    // Update player profile with new cluster insights
-    if (d.raumStatus ?? d.hoeheStatus ?? d.mentalStatus) {
+    // Update player profile with cluster statuses from match observations
+    const obs = await getLatestObservationsForMatch(userId, d.matchId)
+    const profileUpdate: Record<string, unknown> = { updatedAt: new Date() }
+    if (obs.raum) profileUpdate['raumStatus'] = obs.raum
+    if (obs.hoehe) profileUpdate['hoeheStatus'] = obs.hoehe
+    if (obs.mental) profileUpdate['mentalStatus'] = obs.mental
+
+    if (obs.raum ?? obs.hoehe ?? obs.mental) {
       await db
         .update(profiles)
-        .set({
-          ...(d.raumStatus ? { raumStatus: d.raumStatus } : {}),
-          ...(d.hoeheStatus ? { hoeheStatus: d.hoeheStatus } : {}),
-          ...(d.mentalStatus ? { mentalStatus: d.mentalStatus } : {}),
-          updatedAt: new Date(),
-        })
+        .set(profileUpdate)
         .where(and(eq(profiles.playerId, d.playerId), eq(profiles.userId, userId)))
     }
   } catch (err) {
