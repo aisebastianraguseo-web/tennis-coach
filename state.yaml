@@ -1,14 +1,14 @@
 id: tennis-coach
 type: web-saas
-phase: 5
-status: running
+phase: 7
+status: done
 created_at: 2026-03-22T00:00:00Z
-updated_at: 2026-03-23T00:00:00Z
+updated_at: 2026-03-31T00:00:00Z
 phases:
   1_spec: done
   2_spec_review: done
   3_scaffold: done
   4_features: done
-  5_gate: running
-  6_fix: pending
-  7_ship: pending
+  5_gate: done
+  6_fix: done
+  7_ship: done
