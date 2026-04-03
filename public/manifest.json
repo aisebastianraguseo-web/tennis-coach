@@ -1,0 +1,10 @@
+{
+  "name": "Tennis Coach",
+  "short_name": "Tennis Coach",
+  "description": "3-Cluster Matchanalyse für Tennistrainer",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1F4E79",
+  "icons": []
+}
