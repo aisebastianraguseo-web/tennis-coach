@@ -16,6 +16,9 @@ interface MatchViewProps {
   matchId: string
   playerId: string
   playerName: string
+  mode: 'play' | 'observe'
+  observePlayerId: string | null
+  observePlayerName: string | null
   selectedGoals: MatchGoal[]
   aiBriefing: string
 }
@@ -39,6 +42,8 @@ interface ClusterState {
 }
 
 type ClusterKey = keyof ClusterState
+
+const DEFAULT_CLUSTER: ClusterState = { raum: 'unknown', hoehe: 'unknown', mental: 'unknown' }
 
 function ClusterGroup({
   label,
@@ -77,15 +82,21 @@ export function MatchView({
   matchId,
   playerId,
   playerName,
+  mode,
+  observePlayerId,
+  observePlayerName,
   selectedGoals,
   aiBriefing,
 }: MatchViewProps): React.JSX.Element {
   const router = useRouter()
-  const [clusters, setClusters] = useState<ClusterState>({
-    raum: 'unknown',
-    hoehe: 'unknown',
-    mental: 'unknown',
+
+  // Track cluster state per player independently
+  const [clustersMap, setClustersMap] = useState<Record<string, ClusterState>>({
+    [playerId]: { ...DEFAULT_CLUSTER },
+    ...(observePlayerId ? { [observePlayerId]: { ...DEFAULT_CLUSTER } } : {}),
   })
+
+  const [activePlayerId, setActivePlayerId] = useState<string>(playerId)
   const [observation, setObservation] = useState('')
   const [setNumber, setSetNumber] = useState(1)
   const [aiRec, setAiRec] = useState<string | null>(aiBriefing || null)
@@ -97,13 +108,15 @@ export function MatchView({
   const [result, setResult] = useState<'W' | 'L' | ''>('')
   const [score, setScore] = useState('')
 
+  const clusters = clustersMap[activePlayerId] ?? { ...DEFAULT_CLUSTER }
+
   function handleClusterChange(key: ClusterKey, val: ClusterStatus): void {
     const next = { ...clusters, [key]: val }
-    setClusters(next)
-    fetchAi(next)
+    setClustersMap((m) => ({ ...m, [activePlayerId]: next }))
+    fetchAi(next, activePlayerId)
   }
 
-  function fetchAi(clusterState: ClusterState): void {
+  function fetchAi(clusterState: ClusterState, forPlayerId: string): void {
     setAiError(null)
     startAiTransition(async () => {
       try {
@@ -111,7 +124,7 @@ export function MatchView({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            playerId,
+            playerId: forPlayerId,
             matchId,
             clusterState: {
               raum: clusterState.raum,
@@ -137,15 +150,29 @@ export function MatchView({
   function handleEnd(): void {
     startEndTransition(async () => {
       await endMatch({ matchId, playerId, result: result || null, score })
-      router.push(`/spieler/${playerId}/nachbereitung/${matchId}`)
+      if (mode === 'observe') {
+        router.push(`/spieler/${playerId}`)
+      } else {
+        router.push(`/spieler/${playerId}/nachbereitung/${matchId}`)
+      }
     })
   }
+
+  const observePlayers =
+    mode === 'observe' && observePlayerId && observePlayerName
+      ? [
+          { id: playerId, name: playerName },
+          { id: observePlayerId, name: observePlayerName },
+        ]
+      : null
 
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-navy-900 text-lg font-bold">{playerName}</h1>
+        <h1 className="text-navy-900 text-lg font-bold">
+          {mode === 'observe' ? 'Beobachtung' : playerName}
+        </h1>
         <div className="flex items-center gap-1" role="group" aria-label="Aktueller Satz">
           {[1, 2, 3].map((s) => (
             <button
@@ -159,6 +186,31 @@ export function MatchView({
           ))}
         </div>
       </div>
+
+      {/* Player switcher (observe mode only) */}
+      {observePlayers && (
+        <div
+          className="flex rounded-lg border border-slate-200 bg-white p-1"
+          role="tablist"
+          aria-label="Spieler wechseln"
+        >
+          {observePlayers.map((p) => (
+            <button
+              key={p.id}
+              role="tab"
+              aria-selected={activePlayerId === p.id}
+              onClick={() => setActivePlayerId(p.id)}
+              className={`flex-1 rounded-md py-2 text-sm font-semibold transition-colors ${
+                activePlayerId === p.id
+                  ? 'bg-navy-900 text-white'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* AI Recommendation */}
       <AiCard text={aiRec} isLoading={isLoadingAi} error={aiError} aria-label="KI-Empfehlung" />
@@ -200,29 +252,31 @@ export function MatchView({
           value={observation}
           onChange={(e) => setObservation(e.target.value)}
           onBlur={() => {
-            if (observation) fetchAi(clusters)
+            if (observation) fetchAi(clusters, activePlayerId)
           }}
           placeholder="Beobachtung (optional)…"
           className="focus:border-navy-900 focus:ring-navy-900 w-full rounded-lg border border-slate-200 px-4 py-3 text-base focus:ring-1 focus:outline-none"
         />
       </div>
 
-      {/* Goals reminder (collapsed) */}
-      <details className="rounded-lg border border-slate-200 bg-white">
-        <summary
-          className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-700"
-          onClick={() => setShowGoals((v) => !v)}
-        >
-          Meine Ziele {showGoals ? '▲' : '▼'}
-        </summary>
-        <ul className="divide-y divide-slate-100 px-4 pb-3">
-          {selectedGoals.map((g) => (
-            <li key={g.id} className="py-2 text-sm text-slate-700">
-              {g.text}
-            </li>
-          ))}
-        </ul>
-      </details>
+      {/* Goals reminder (play mode only, collapsed) */}
+      {mode === 'play' && selectedGoals.length > 0 && (
+        <details className="rounded-lg border border-slate-200 bg-white">
+          <summary
+            className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-700"
+            onClick={() => setShowGoals((v) => !v)}
+          >
+            Meine Ziele {showGoals ? '▲' : '▼'}
+          </summary>
+          <ul className="divide-y divide-slate-100 px-4 pb-3">
+            {selectedGoals.map((g) => (
+              <li key={g.id} className="py-2 text-sm text-slate-700">
+                {g.text}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       {/* Retest block (collapsed) */}
       <details className="rounded-lg border border-slate-200 bg-white">
@@ -237,40 +291,42 @@ export function MatchView({
         </div>
       </details>
 
-      {/* Score */}
-      <div className="flex gap-3">
-        <div className="flex-1">
-          <label htmlFor="result-select" className="mb-1 block text-xs text-slate-500">
-            Ergebnis
-          </label>
-          <select
-            id="result-select"
-            value={result}
-            onChange={(e) => setResult(e.target.value as 'W' | 'L' | '')}
-            className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
-          >
-            <option value="">–</option>
-            <option value="W">Sieg (W)</option>
-            <option value="L">Niederlage (L)</option>
-          </select>
+      {/* Score (play mode only) */}
+      {mode === 'play' && (
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label htmlFor="result-select" className="mb-1 block text-xs text-slate-500">
+              Ergebnis
+            </label>
+            <select
+              id="result-select"
+              value={result}
+              onChange={(e) => setResult(e.target.value as 'W' | 'L' | '')}
+              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+            >
+              <option value="">–</option>
+              <option value="W">Sieg (W)</option>
+              <option value="L">Niederlage (L)</option>
+            </select>
+          </div>
+          <div className="flex-1">
+            <label htmlFor="score-input" className="mb-1 block text-xs text-slate-500">
+              Score
+            </label>
+            <input
+              id="score-input"
+              type="text"
+              value={score}
+              onChange={(e) => setScore(e.target.value)}
+              placeholder="6:4, 3:6"
+              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+            />
+          </div>
         </div>
-        <div className="flex-1">
-          <label htmlFor="score-input" className="mb-1 block text-xs text-slate-500">
-            Score
-          </label>
-          <input
-            id="score-input"
-            type="text"
-            value={score}
-            onChange={(e) => setScore(e.target.value)}
-            placeholder="6:4, 3:6"
-            className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
-          />
-        </div>
-      </div>
+      )}
 
       <Button variant="danger" size="touch" isLoading={isEnding} onClick={handleEnd}>
-        Match beenden
+        {mode === 'observe' ? 'Beobachtung beenden' : 'Match beenden'}
       </Button>
     </div>
   )

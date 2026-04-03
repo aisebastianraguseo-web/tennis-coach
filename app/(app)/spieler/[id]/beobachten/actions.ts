@@ -7,6 +7,7 @@ import { z } from 'zod'
 
 const startObserveSchema = z.object({
   playerId: z.string().uuid(),
+  observePlayerId: z.string().uuid().optional(),
 })
 
 export async function startObserve(data: unknown): Promise<{ error?: string }> {
@@ -16,12 +17,15 @@ export async function startObserve(data: unknown): Promise<{ error?: string }> {
   const parsed = startObserveSchema.safeParse(data)
   if (!parsed.success) return { error: 'Ungültige Daten' }
 
+  const observePlayerIds = parsed.data.observePlayerId ? [parsed.data.observePlayerId] : []
+
   const match = await createMatch({
     userId,
     playerId: parsed.data.playerId,
     mode: 'observe',
     selectedGoalIds: [],
     aiBriefing: '',
+    observePlayerIds,
   })
 
   if (!match) return { error: 'Beobachtung konnte nicht gestartet werden' }

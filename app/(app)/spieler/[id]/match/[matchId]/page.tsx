@@ -22,11 +22,18 @@ export default async function MatchPage({ params }: PageProps): Promise<React.JS
 
   const selectedGoals = await getGoalsForMatch(userId, match.selectedGoalIds)
 
+  // For observe mode: fetch second player if present
+  const observePlayerId = match.observePlayerIds[0] ?? null
+  const observePlayer = observePlayerId ? await getPlayerById(userId, observePlayerId) : null
+
   return (
     <MatchView
       matchId={matchId}
       playerId={id}
       playerName={player.name}
+      mode={match.mode}
+      observePlayerId={observePlayerId}
+      observePlayerName={observePlayer?.name ?? null}
       selectedGoals={selectedGoals.map((g) => ({ id: g.id, text: g.text }))}
       aiBriefing={match.aiBriefing}
     />
