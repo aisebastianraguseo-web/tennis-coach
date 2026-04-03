@@ -96,16 +96,14 @@ export function MatchView({
 }: MatchViewProps): React.JSX.Element {
   const router = useRouter()
 
-  // Track cluster state per player independently
-  const [clustersMap, setClustersMap] = useState<Record<string, ClusterState>>({
-    [playerId]: { ...DEFAULT_CLUSTER },
-    ...(observePlayerId ? { [observePlayerId]: { ...DEFAULT_CLUSTER } } : {}),
-  })
+  // Track cluster state per player+set: key = `${playerId}-${setNumber}`
+  const [clustersMap, setClustersMap] = useState<Record<string, ClusterState>>({})
+  // Track AI recommendation per set: key = setNumber
+  const [aiRecMap, setAiRecMap] = useState<Record<number, string>>({ 1: aiBriefing || '' })
 
   const [activePlayerId, setActivePlayerId] = useState<string>(playerId)
   const [observation, setObservation] = useState('')
   const [setNumber, setSetNumber] = useState(1)
-  const [aiRec, setAiRec] = useState<string | null>(aiBriefing || null)
   const [aiError, setAiError] = useState<string | null>(null)
   const [isLoadingAi, startAiTransition] = useTransition()
   const [isEnding, startEndTransition] = useTransition()
@@ -114,18 +112,19 @@ export function MatchView({
   const [result, setResult] = useState<'W' | 'L' | ''>('')
   const [score, setScore] = useState('')
 
-  const clusters = clustersMap[activePlayerId] ?? { ...DEFAULT_CLUSTER }
+  const clusterKey = `${activePlayerId}-${setNumber}`
+  const clusters = clustersMap[clusterKey] ?? { ...DEFAULT_CLUSTER }
+  const aiRec = aiRecMap[setNumber] ?? null
 
   function handleClusterChange(key: ClusterKey, val: ClusterStatus): void {
     const next = { ...clusters, [key]: val }
-    setClustersMap((m) => ({ ...m, [activePlayerId]: next }))
+    setClustersMap((m) => ({ ...m, [clusterKey]: next }))
     fetchAi(next, activePlayerId, setNumber)
   }
 
   function handleSetChange(s: number): void {
     setSetNumber(s)
-    // Reset cluster state for active player so each set starts fresh
-    setClustersMap((m) => ({ ...m, [activePlayerId]: { ...DEFAULT_CLUSTER } }))
+    // State is preserved per set — no reset needed
   }
 
   function fetchAi(clusterState: ClusterState, forPlayerId: string, forSetNumber: number): void {
@@ -153,7 +152,7 @@ export function MatchView({
           setAiError(data.error ?? 'Fehler')
           return
         }
-        setAiRec(data.recommendation ?? '')
+        setAiRecMap((m) => ({ ...m, [forSetNumber]: data.recommendation ?? '' }))
       } catch {
         setAiError('Netzwerkfehler')
       }
