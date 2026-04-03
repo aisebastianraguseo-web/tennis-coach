@@ -8,6 +8,7 @@ export const preMatchSchema = z.object({
 export const changoverSchema = z.object({
   playerId: z.string().uuid(),
   matchId: z.string().uuid(),
+  setNumber: z.number().int().min(1).max(3).default(1),
   clusterState: z.object({
     raum: z.enum(['stabil', 'instabil', 'unknown']),
     hoehe: z.enum(['stabil', 'instabil', 'unknown']),

@@ -23,6 +23,12 @@ interface MatchViewProps {
   aiBriefing: string
 }
 
+const SET_LABELS: { set: number; label: string; focus: string }[] = [
+  { set: 1, label: 'Satz 1', focus: 'Raum testen' },
+  { set: 2, label: 'Satz 2', focus: 'Höhe testen' },
+  { set: 3, label: 'Satz 3', focus: 'Mental / Fitness' },
+]
+
 const CLUSTER_BUTTONS: { value: ClusterStatus; label: string }[] = [
   { value: 'stabil', label: 'Stabil' },
   { value: 'instabil', label: 'Instabil' },
@@ -113,10 +119,16 @@ export function MatchView({
   function handleClusterChange(key: ClusterKey, val: ClusterStatus): void {
     const next = { ...clusters, [key]: val }
     setClustersMap((m) => ({ ...m, [activePlayerId]: next }))
-    fetchAi(next, activePlayerId)
+    fetchAi(next, activePlayerId, setNumber)
   }
 
-  function fetchAi(clusterState: ClusterState, forPlayerId: string): void {
+  function handleSetChange(s: number): void {
+    setSetNumber(s)
+    // Reset cluster state for active player so each set starts fresh
+    setClustersMap((m) => ({ ...m, [activePlayerId]: { ...DEFAULT_CLUSTER } }))
+  }
+
+  function fetchAi(clusterState: ClusterState, forPlayerId: string, forSetNumber: number): void {
     setAiError(null)
     startAiTransition(async () => {
       try {
@@ -126,6 +138,7 @@ export function MatchView({
           body: JSON.stringify({
             playerId: forPlayerId,
             matchId,
+            setNumber: forSetNumber,
             clusterState: {
               raum: clusterState.raum,
               hoehe: clusterState.hoehe,
@@ -173,18 +186,31 @@ export function MatchView({
         <h1 className="text-navy-900 text-lg font-bold">
           {mode === 'observe' ? 'Beobachtung' : playerName}
         </h1>
-        <div className="flex items-center gap-1" role="group" aria-label="Aktueller Satz">
-          {[1, 2, 3].map((s) => (
-            <button
-              key={s}
-              onClick={() => setSetNumber(s)}
-              aria-pressed={setNumber === s}
-              className={`rounded px-2 py-1 text-sm font-semibold ${setNumber === s ? 'bg-navy-900 text-white' : 'bg-slate-100 text-slate-600'}`}
+      </div>
+
+      {/* Set switcher */}
+      <div
+        className="rounded-lg border border-slate-200 bg-white p-1"
+        role="group"
+        aria-label="Satz wählen"
+      >
+        {SET_LABELS.map(({ set, label, focus }) => (
+          <button
+            key={set}
+            onClick={() => handleSetChange(set)}
+            aria-pressed={setNumber === set}
+            className={`w-1/3 rounded-md py-2 text-center transition-colors ${
+              setNumber === set ? 'bg-navy-900 text-white' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            <span className="block text-sm font-bold">{label}</span>
+            <span
+              className={`block text-xs ${setNumber === set ? 'text-blue-200' : 'text-slate-400'}`}
             >
-              S{s}
-            </button>
-          ))}
-        </div>
+              {focus}
+            </span>
+          </button>
+        ))}
       </div>
 
       {/* Player switcher (observe mode only) */}
@@ -252,7 +278,7 @@ export function MatchView({
           value={observation}
           onChange={(e) => setObservation(e.target.value)}
           onBlur={() => {
-            if (observation) fetchAi(clusters, activePlayerId)
+            if (observation) fetchAi(clusters, activePlayerId, setNumber)
           }}
           placeholder="Beobachtung (optional)…"
           className="focus:border-navy-900 focus:ring-navy-900 w-full rounded-lg border border-slate-200 px-4 py-3 text-base focus:ring-1 focus:outline-none"

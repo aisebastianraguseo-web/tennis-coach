@@ -19,7 +19,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const parsed = changoverSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: 'Ungültige Anfrage' }, { status: 400 })
 
-  const { playerId, matchId, clusterState, observation, selectedGoalIds } = parsed.data
+  const { playerId, matchId, setNumber, clusterState, observation, selectedGoalIds } = parsed.data
   const [player, profile, selectedGoals] = await Promise.all([
     getPlayerById(userId, playerId),
     getProfile(userId, playerId),
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         userId,
         matchId,
         playerId,
-        setNumber: 1,
+        setNumber,
         cluster: c.cluster,
         status: c.status as 'stabil' | 'instabil' | 'unknown',
         note: observation ?? '',
