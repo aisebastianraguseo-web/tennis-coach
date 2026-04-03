@@ -92,16 +92,22 @@ export async function saveRetroEntry(data: {
 
 export async function getLatestObservationsForMatch(
   userId: string,
-  matchId: string
+  matchId: string,
+  forPlayerId?: string
 ): Promise<{
   raum: 'stabil' | 'instabil' | null
   hoehe: 'stabil' | 'instabil' | null
   mental: 'stabil' | 'instabil' | null
 }> {
+  const conditions = [
+    eq(matchObservations.matchId, matchId),
+    eq(matchObservations.userId, userId),
+    ...(forPlayerId ? [eq(matchObservations.playerId, forPlayerId)] : []),
+  ]
   const rows = await db
     .select()
     .from(matchObservations)
-    .where(and(eq(matchObservations.matchId, matchId), eq(matchObservations.userId, userId)))
+    .where(and(...conditions))
     .orderBy(desc(matchObservations.createdAt))
 
   const result: {

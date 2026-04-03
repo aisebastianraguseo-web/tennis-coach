@@ -22,6 +22,7 @@ interface Profile {
 interface MatchHistoryEntry {
   id: string
   date: string
+  mode: string
   result: string | null
   score: string
 }
@@ -157,15 +158,21 @@ export function PlayerProfileView({
                   <span className="text-sm text-slate-700">
                     {new Date(m.date).toLocaleDateString('de-DE')}
                   </span>
-                  <span
-                    className={`rounded px-2 py-0.5 text-sm font-semibold ${
-                      m.result === 'W'
-                        ? 'bg-stable-bg text-stable-text'
-                        : 'bg-instabil-bg text-instabil-text'
-                    }`}
-                  >
-                    {m.result ?? '?'} {m.score}
-                  </span>
+                  {m.mode === 'observe' ? (
+                    <span className="rounded bg-slate-100 px-2 py-0.5 text-sm font-semibold text-slate-600">
+                      Beobachtung
+                    </span>
+                  ) : (
+                    <span
+                      className={`rounded px-2 py-0.5 text-sm font-semibold ${
+                        m.result === 'W'
+                          ? 'bg-stable-bg text-stable-text'
+                          : 'bg-instabil-bg text-instabil-text'
+                      }`}
+                    >
+                      {m.result ?? '?'} {m.score}
+                    </span>
+                  )}
                 </button>
               </li>
             ))}

@@ -44,6 +44,7 @@ export default async function PlayerProfilePage({ params }: PageProps): Promise<
       matchHistory={history.map((m) => ({
         id: m.id,
         date: m.date,
+        mode: m.mode,
         result: m.result,
         score: m.score,
       }))}

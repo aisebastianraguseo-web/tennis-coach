@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { profiles, matches, matchObservations } from '@/lib/db/schema'
-import { eq, and, desc } from 'drizzle-orm'
+import { eq, and, desc, or, sql } from 'drizzle-orm'
 
 export async function getProfile(userId: string, playerId: string) {
   const rows = await db
@@ -21,7 +21,15 @@ export async function getMatchHistory(userId: string, playerId: string) {
       score: matches.score,
     })
     .from(matches)
-    .where(and(eq(matches.playerId, playerId), eq(matches.userId, userId)))
+    .where(
+      and(
+        eq(matches.userId, userId),
+        or(
+          eq(matches.playerId, playerId),
+          sql`${playerId}::uuid = ANY(${matches.observePlayerIds})`
+        )
+      )
+    )
     .orderBy(desc(matches.date))
 }
 
