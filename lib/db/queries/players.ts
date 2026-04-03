@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
-import { players, profiles, matches } from '@/lib/db/schema'
-import { eq, and, count, max, sql } from 'drizzle-orm'
+import { players, profiles } from '@/lib/db/schema'
+import { eq, and, sql } from 'drizzle-orm'
 
 export interface PlayerListRow {
   id: string
@@ -19,15 +19,22 @@ export async function getPlayersForList(userId: string): Promise<PlayerListRow[]
       id: players.id,
       name: players.name,
       isPredefined: players.isPredefined,
-      matchCount: count(matches.id),
-      lastMatchDate: max(matches.date),
+      matchCount: sql<number>`(
+        SELECT COUNT(*) FROM matches m
+        WHERE m.user_id = ${userId}
+        AND (m.player_id = ${players.id} OR ${players.id}::uuid = ANY(m.observe_player_ids))
+      )`,
+      lastMatchDate: sql<string | null>`(
+        SELECT MAX(m.date) FROM matches m
+        WHERE m.user_id = ${userId}
+        AND (m.player_id = ${players.id} OR ${players.id}::uuid = ANY(m.observe_player_ids))
+      )`,
       raumStatus: sql<string>`COALESCE(${profiles.raumStatus}, 'unknown')`,
       hoeheStatus: sql<string>`COALESCE(${profiles.hoeheStatus}, 'unknown')`,
       mentalStatus: sql<string>`COALESCE(${profiles.mentalStatus}, 'unknown')`,
     })
     .from(players)
     .leftJoin(profiles, eq(profiles.playerId, players.id))
-    .leftJoin(matches, and(eq(matches.playerId, players.id), eq(matches.userId, userId)))
     .where(eq(players.userId, userId))
     .groupBy(
       players.id,
