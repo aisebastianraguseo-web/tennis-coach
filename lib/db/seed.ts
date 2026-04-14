@@ -2,20 +2,18 @@
 
 import { db } from './index'
 import { players, profiles, goals, userSettings } from './schema'
-import { eq } from 'drizzle-orm'
 import { PREDEFINED_PLAYERS, PREDEFINED_GOALS } from './seed-data'
 
 export async function seedUserIfNew(userId: string): Promise<void> {
-  const existing = await db
-    .select()
-    .from(userSettings)
-    .where(eq(userSettings.userId, userId))
-    .limit(1)
+  // Atomic guard: only the first concurrent caller actually inserts the row.
+  // ON CONFLICT DO NOTHING returns 0 rows if the userId already exists.
+  const inserted = await db
+    .insert(userSettings)
+    .values({ userId })
+    .onConflictDoNothing()
+    .returning({ userId: userSettings.userId })
 
-  if (existing.length > 0) return
-
-  // Create user settings row
-  await db.insert(userSettings).values({ userId })
+  if (inserted.length === 0) return
 
   // Seed 16 predefined players + their empty profiles
   const playerRows = PREDEFINED_PLAYERS.map((name) => ({

@@ -10,16 +10,13 @@ export async function initUser(): Promise<{ showGdpr: boolean }> {
   const { userId } = await auth()
   if (!userId) return { showGdpr: false }
 
+  await seedUserIfNew(userId)
+
   const existing = await db
     .select()
     .from(userSettings)
     .where(eq(userSettings.userId, userId))
     .limit(1)
-
-  if (existing.length === 0) {
-    await seedUserIfNew(userId)
-    return { showGdpr: true }
-  }
 
   const showGdpr = existing[0]?.gdprNoticeDismissedAt === null
   return { showGdpr: showGdpr ?? true }
